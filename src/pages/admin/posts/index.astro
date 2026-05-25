@@ -2,9 +2,9 @@
 export const prerender = false
 
 import AdminLayout from '../../../layouts/AdminLayout.astro'
-import { getAllPosts } from '../../../lib/db/posts'
+import { getAllPostsAsync } from '../../../lib/db/posts'
 
-const posts = getAllPosts().sort(
+const posts = (await getAllPostsAsync()).sort(
   (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
 )
 ---

@@ -2,10 +2,10 @@
 export const prerender = false
 
 import AdminLayout from '../../../../layouts/AdminLayout.astro'
-import { getPostById } from '../../../../lib/db/posts'
+import { getPostByIdAsync } from '../../../../lib/db/posts'
 
 const { id } = Astro.params
-const post = id ? getPostById(id) : null
+const post = id ? await getPostByIdAsync(id) : null
 const isNew = !post
 ---
 

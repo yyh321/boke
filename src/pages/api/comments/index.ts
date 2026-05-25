@@ -2,16 +2,16 @@ export const prerender = false
 
 import type { APIRoute } from 'astro'
 import {
-  getAllComments,
-  getCommentById,
-  createComment,
-  updateComment,
-  deleteComment,
-  getCommentsByPostId,
-  getPendingComments,
-  getCommentStats,
+  getAllCommentsAsync,
+  getCommentByIdAsync,
+  createCommentAsync,
+  updateCommentAsync,
+  deleteCommentAsync,
+  getCommentsByPostIdAsync,
+  getPendingCommentsAsync,
+  getCommentStatsAsync,
 } from '../../../lib/db/comments'
-import { getPostById, updatePost } from '../../../lib/db/posts'
+import { getPostById } from '../../../lib/db/posts'
 import {
   validateCommentContent,
   validateAuthorName,
@@ -28,7 +28,7 @@ export const GET: APIRoute = async ({ url }) => {
   const filter = url.searchParams.get('filter')
 
   if (id) {
-    const comment = getCommentById(id)
+    const comment = await getCommentByIdAsync(id)
     if (!comment) {
       return new Response(JSON.stringify({ success: false, error: '评论不存在' }), { status: 404 })
     }
@@ -36,19 +36,19 @@ export const GET: APIRoute = async ({ url }) => {
   }
 
   if (postId) {
-    const comments = getCommentsByPostId(postId)
+    const comments = await getCommentsByPostIdAsync(postId)
     return new Response(JSON.stringify({ success: true, data: comments }))
   }
 
   if (filter === 'pending') {
-    return new Response(JSON.stringify({ success: true, data: getPendingComments() }))
+    return new Response(JSON.stringify({ success: true, data: await getPendingCommentsAsync() }))
   }
 
   if (filter === 'stats') {
-    return new Response(JSON.stringify({ success: true, data: getCommentStats() }))
+    return new Response(JSON.stringify({ success: true, data: await getCommentStatsAsync() }))
   }
 
-  return new Response(JSON.stringify({ success: true, data: getAllComments() }))
+  return new Response(JSON.stringify({ success: true, data: await getAllCommentsAsync() }))
 }
 
 export const POST: APIRoute = async ({ request, clientAddress }) => {
@@ -110,11 +110,7 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
     updatedAt: now,
   }
 
-  const created = createComment(comment)
-
-  if (post) {
-    updatePost(comment.postId, { commentCount: (post.commentCount || 0) + 1 })
-  }
+  const created = await createCommentAsync(comment)
 
   createNotification({
     type: 'new_comment',
@@ -138,32 +134,23 @@ export const PUT: APIRoute = async ({ request }) => {
     return new Response(JSON.stringify({ success: false, error: '缺少评论 ID' }), { status: 400 })
   }
 
-  const existing = getCommentById(id)
+  const existing = await getCommentByIdAsync(id)
   if (!existing) {
     return new Response(JSON.stringify({ success: false, error: '评论不存在' }), { status: 404 })
   }
 
   if (action === 'approve') {
-    const updated = updateComment(id, { status: 'approved' })
-    const post = getPostById(existing.postId)
-    if (post) {
-      createNotification({
-        type: 'comment_approved',
-        comment: updated!,
-        postTitle: post.title,
-        postUrl: `/blog/${post.slug}`,
-      })
-    }
+    const updated = await updateCommentAsync(id, { status: 'approved' })
     return new Response(JSON.stringify({ success: true, data: updated }))
   }
 
   if (action === 'reject') {
-    const updated = updateComment(id, { status: 'rejected' })
+    const updated = await updateCommentAsync(id, { status: 'rejected' })
     return new Response(JSON.stringify({ success: true, data: updated }))
   }
 
   if (action === 'pin') {
-    const updated = updateComment(id, { isPinned: !existing.isPinned })
+    const updated = await updateCommentAsync(id, { isPinned: !existing.isPinned })
     return new Response(JSON.stringify({ success: true, data: updated }))
   }
 
@@ -182,20 +169,11 @@ export const PUT: APIRoute = async ({ request }) => {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     }
-    const created = createComment(replyComment)
-    const post = getPostById(existing.postId)
-    if (post) {
-      createNotification({
-        type: 'comment_reply',
-        comment: created,
-        postTitle: post.title,
-        postUrl: `/blog/${post.slug}`,
-      })
-    }
+    const created = await createCommentAsync(replyComment)
     return new Response(JSON.stringify({ success: true, data: created }), { status: 201 })
   }
 
-  const updated = updateComment(id, updates)
+  const updated = await updateCommentAsync(id, updates)
   return new Response(JSON.stringify({ success: true, data: updated }))
 }
 
@@ -206,11 +184,10 @@ export const DELETE: APIRoute = async ({ request }) => {
     return new Response(JSON.stringify({ success: false, error: '缺少评论 ID' }), { status: 400 })
   }
 
-  const existing = getCommentById(body.id)
-  if (!existing) {
+  const deleted = await deleteCommentAsync(body.id)
+  if (!deleted) {
     return new Response(JSON.stringify({ success: false, error: '评论不存在' }), { status: 404 })
   }
 
-  deleteComment(body.id)
   return new Response(JSON.stringify({ success: true, message: '删除成功' }))
 }

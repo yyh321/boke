@@ -2,7 +2,7 @@ export const prerender = false
 
 import type { APIRoute } from 'astro'
 import { getCollection } from 'astro:content'
-import { getAllPosts, getPostById, createPost, updatePost, deletePost } from '../../../lib/db/posts'
+import { getAllPostsAsync, getPostByIdAsync, createPostAsync, updatePostAsync, deletePostAsync } from '../../../lib/db/posts'
 import { validatePostTitle, validatePostContent, sanitizeHtml } from '../../../lib/validation'
 import { generateSlug, generateSeoTitle, generateSeoDescription, calculateReadingTime, cleanSlug } from '../../../lib/seo'
 import type { PostData, ApiResponse } from '../../../lib/db/types'
@@ -12,14 +12,14 @@ export const GET: APIRoute = async ({ url }) => {
   const filter = url.searchParams.get('filter')
 
   if (id) {
-    const post = getPostById(id)
+    const post = await getPostByIdAsync(id)
     if (!post) {
       return new Response(JSON.stringify({ success: false, error: '文章不存在' }), { status: 404 })
     }
     return new Response(JSON.stringify({ success: true, data: post }))
   }
 
-  let posts = getAllPosts()
+  let posts = await getAllPostsAsync()
   if (filter === 'published') {
     posts = posts.filter((p) => p.status === 'published')
   }
@@ -105,7 +105,7 @@ export const POST: APIRoute = async ({ request }) => {
     commentCount: 0,
   }
 
-  const created = createPost(post)
+  const created = await createPostAsync(post)
   return new Response(JSON.stringify({ success: true, data: created } satisfies ApiResponse), { status: 201 })
 }
 
@@ -117,7 +117,7 @@ export const PUT: APIRoute = async ({ request }) => {
     return new Response(JSON.stringify({ success: false, error: '缺少文章 ID' } satisfies ApiResponse), { status: 400 })
   }
 
-  const existing = getPostById(id)
+  const existing = await getPostByIdAsync(id)
   if (!existing) {
     return new Response(JSON.stringify({ success: false, error: '文章不存在' } satisfies ApiResponse), { status: 404 })
   }
@@ -148,7 +148,7 @@ export const PUT: APIRoute = async ({ request }) => {
     updates.slug = cleanSlug(generateSlug(updates.title))
   }
 
-  const updated = updatePost(id, updates)
+  const updated = await updatePostAsync(id, updates)
   return new Response(JSON.stringify({ success: true, data: updated } satisfies ApiResponse))
 }
 
@@ -159,7 +159,7 @@ export const DELETE: APIRoute = async ({ request }) => {
     return new Response(JSON.stringify({ success: false, error: '缺少文章 ID' } satisfies ApiResponse), { status: 400 })
   }
 
-  const deleted = deletePost(body.id)
+  const deleted = await deletePostAsync(body.id)
   if (!deleted) {
     return new Response(JSON.stringify({ success: false, error: '文章不存在' } satisfies ApiResponse), { status: 404 })
   }

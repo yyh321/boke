@@ -2,10 +2,14 @@
 export const prerender = false
 
 import AdminLayout from '../../../layouts/AdminLayout.astro'
-import { getAllComments } from '../../../lib/db/comments'
-import { getPostById } from '../../../lib/db/posts'
+import { getAllCommentsAsync } from '../../../lib/db/comments'
+import { getAllPostsAsync } from '../../../lib/db/posts'
 
-const comments = getAllComments()
+const [comments, allPosts] = await Promise.all([
+  getAllCommentsAsync(),
+  getAllPostsAsync(),
+])
+const postMap = new Map(allPosts.map((p) => [p.id || p.slug, p]))
 ---
 
 <AdminLayout title="评论管理">
@@ -32,7 +36,7 @@ const comments = getAllComments()
         </thead>
         <tbody>
           {comments.map((comment) => {
-            const post = getPostById(comment.postId)
+            const post = postMap.get(comment.postId) || postMap.get(comment.postId.replace(/-[^-]+$/, ''))
             return (
               <tr class="border-b border-gray-50 hover:bg-gray-50 transition-colors" data-id={comment.id}>
                 <td class="px-6 py-4">

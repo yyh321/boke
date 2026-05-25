@@ -3,7 +3,7 @@ export const prerender = false
 
 import { getCollection } from 'astro:content'
 import BlogLayout from '../../layouts/BlogLayout.astro'
-import { getPublishedPosts, getPostBySlug } from '../../lib/db/posts'
+import { getPostBySlugAsync } from '../../lib/db/posts'
 import { cleanSlug } from '../../lib/seo'
 import type { PostData } from '../../lib/db/types'
 
@@ -20,7 +20,7 @@ const contentPost = contentPosts.find((p) => p.slug === slug || p.slug === clean
 if (contentPost && !contentPost.data.draft) {
   post = contentPost
 } else {
-  dbPost = getPostBySlug(slug) || getPostBySlug(clean)
+  dbPost = (await getPostBySlugAsync(slug)) || (await getPostBySlugAsync(clean))
 }
 ---
 

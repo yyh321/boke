@@ -4,161 +4,129 @@ import { readJsonFile, writeJsonFile } from './storage'
 const POSTS_FILE = 'posts.json'
 
 let redisClient: any = null
-let redisInitialized = false
+let redisInitPromise: Promise<any> | null = null
 
-async function getRedis(): Promise<any> {
-  if (redisInitialized) return redisClient
-  redisInitialized = true
-  try {
-    const { Redis } = await import('@upstash/redis')
-    const url = import.meta.env.KV_URL || import.meta.env.REDIS_URL
-    const token = import.meta.env.KV_REST_API_TOKEN || import.meta.env.REDIS_TOKEN
-    if (url && token) {
-      redisClient = new Redis({ url, token })
+async function initRedis(): Promise<any> {
+  if (redisClient) return redisClient
+  if (redisInitPromise) return redisInitPromise
+
+  redisInitPromise = (async () => {
+    try {
+      const { Redis } = await import('@upstash/redis')
+      const url = import.meta.env.KV_URL || import.meta.env.REDIS_URL
+      const token = import.meta.env.KV_REST_API_TOKEN || import.meta.env.REDIS_TOKEN
+      if (url && token) {
+        redisClient = new Redis({ url, token })
+        console.log('[DB] Redis connected')
+      }
+    } catch (e) {
+      console.log('[DB] Redis not available, using file storage')
     }
-  } catch {
-    // Redis not available
-  }
-  return redisClient
+    return redisClient
+  })()
+
+  return redisInitPromise
 }
 
 const KV_KEY = 'boke:posts'
-let memoryCache: PostData[] | null = null
+let cache: PostData[] | null = null
+let cacheTime = 0
+const CACHE_TTL = 5000
 
-async function ensureLoaded(): Promise<PostData[]> {
-  if (memoryCache) return memoryCache
+async function ensureRedis(): Promise<any> {
+  return await initRedis()
+}
 
-  const redis = await getRedis()
+async function loadAll(): Promise<PostData[]> {
+  if (cache && Date.now() - cacheTime < CACHE_TTL) {
+    return cache
+  }
+
+  const redis = await ensureRedis()
   if (redis) {
     try {
       const data = await redis.get<string>(KV_KEY)
-      memoryCache = data ? JSON.parse(data) : []
-      return memoryCache
+      if (data) {
+        cache = JSON.parse(data)
+        cacheTime = Date.now()
+        return cache
+      }
     } catch {
-      memoryCache = []
-      return memoryCache
+      // Redis error, fall through
     }
   }
 
-  memoryCache = readJsonFile<PostData[]>(POSTS_FILE, [])
-  return memoryCache
+  cache = readJsonFile<PostData[]>(POSTS_FILE, [])
+  cacheTime = Date.now()
+  return cache
 }
 
-async function saveAll(posts: PostData[]): Promise<void> {
-  memoryCache = posts
-  const redis = await getRedis()
+async function persistAll(posts: PostData[]): Promise<void> {
+  cache = posts
+  cacheTime = Date.now()
+
+  const redis = await ensureRedis()
   if (redis) {
     try {
       await redis.set(KV_KEY, JSON.stringify(posts))
-    } catch {
-      // ignore
+      console.log(`[DB] Saved ${posts.length} posts to Redis`)
+      return
+    } catch (e) {
+      console.error('[DB] Redis save failed:', e)
     }
-  } else {
-    writeJsonFile(POSTS_FILE, posts)
   }
-}
 
-function getSyncPosts(): PostData[] {
-  return readJsonFile<PostData[]>(POSTS_FILE, [])
-}
-
-export function getAllPosts(): PostData[] {
-  return getSyncPosts()
-}
-
-export async function getAllPostsAsync(): Promise<PostData[]> {
-  return await ensureLoaded()
-}
-
-export function getPublishedPosts(): PostData[] {
-  return getSyncPosts()
-    .filter((p) => p.status === 'published')
-    .sort((a, b) => new Date(b.publishDate).getTime() - new Date(a.publishDate).getTime())
+  writeJsonFile(POSTS_FILE, posts)
 }
 
 export async function getPublishedPostsAsync(): Promise<PostData[]> {
-  const posts = await ensureLoaded()
+  const posts = await loadAll()
   return posts
     .filter((p) => p.status === 'published')
     .sort((a, b) => new Date(b.publishDate).getTime() - new Date(a.publishDate).getTime())
 }
 
-export function getPostById(id: string): PostData | null {
-  return getSyncPosts().find((p) => p.id === id) || null
+export async function getAllPostsAsync(): Promise<PostData[]> {
+  return await loadAll()
 }
 
 export async function getPostByIdAsync(id: string): Promise<PostData | null> {
-  const posts = await ensureLoaded()
+  const posts = await loadAll()
   return posts.find((p) => p.id === id) || null
 }
 
-export function getPostBySlug(slug: string): PostData | null {
-  return getSyncPosts().find((p) => p.slug === slug) || null
-}
-
 export async function getPostBySlugAsync(slug: string): Promise<PostData | null> {
-  const posts = await ensureLoaded()
+  const posts = await loadAll()
   return posts.find((p) => p.slug === slug) || null
 }
 
-export function createPost(post: PostData): PostData {
-  const posts = getSyncPosts()
-  posts.push(post)
-  writeJsonFile(POSTS_FILE, posts)
-  getRedis().then((redis) => {
-    if (redis) {
-      const all = [...getSyncPosts()]
-      redis.set(KV_KEY, JSON.stringify(all)).catch(() => {})
-    }
-  })
-  return post
-}
-
 export async function createPostAsync(post: PostData): Promise<PostData> {
-  const posts = await ensureLoaded()
+  const posts = await loadAll()
   posts.push(post)
-  await saveAll(posts)
+  await persistAll(posts)
   return post
-}
-
-export function updatePost(id: string, updates: Partial<PostData>): PostData | null {
-  const posts = getSyncPosts()
-  const index = posts.findIndex((p) => p.id === id)
-  if (index === -1) return null
-  posts[index] = { ...posts[index], ...updates, updatedAt: new Date().toISOString() }
-  writeJsonFile(POSTS_FILE, posts)
-  return posts[index]
 }
 
 export async function updatePostAsync(id: string, updates: Partial<PostData>): Promise<PostData | null> {
-  const posts = await ensureLoaded()
+  const posts = await loadAll()
   const index = posts.findIndex((p) => p.id === id)
   if (index === -1) return null
   posts[index] = { ...posts[index], ...updates, updatedAt: new Date().toISOString() }
-  await saveAll(posts)
+  await persistAll(posts)
   return posts[index]
 }
 
-export function deletePost(id: string): boolean {
-  const posts = getSyncPosts()
-  const index = posts.findIndex((p) => p.id === id)
-  if (index === -1) return false
-  posts.splice(index, 1)
-  writeJsonFile(POSTS_FILE, posts)
-  return true
-}
-
 export async function deletePostAsync(id: string): Promise<boolean> {
-  const posts = await ensureLoaded()
+  const posts = await loadAll()
   const index = posts.findIndex((p) => p.id === id)
   if (index === -1) return false
   posts.splice(index, 1)
-  await saveAll(posts)
+  await persistAll(posts)
   return true
 }
 
-export function getPostStats(): { total: number; published: number; draft: number; scheduled: number } {
-  const posts = getSyncPosts()
+export async function getPostStatsAsync(): Promise<{ total: number; published: number; draft: number; scheduled: number }> {
+  const posts = await loadAll()
   return {
     total: posts.length,
     published: posts.filter((p) => p.status === 'published').length,
@@ -167,8 +135,56 @@ export function getPostStats(): { total: number; published: number; draft: numbe
   }
 }
 
-export async function getPostStatsAsync(): Promise<{ total: number; published: number; draft: number; scheduled: number }> {
-  const posts = await ensureLoaded()
+// Sync versions for build-time prerendering only
+function getFilePosts(): PostData[] {
+  return readJsonFile<PostData[]>(POSTS_FILE, [])
+}
+
+export function getAllPosts(): PostData[] {
+  return getFilePosts()
+}
+
+export function getPublishedPosts(): PostData[] {
+  return getFilePosts()
+    .filter((p) => p.status === 'published')
+    .sort((a, b) => new Date(b.publishDate).getTime() - new Date(a.publishDate).getTime())
+}
+
+export function getPostById(id: string): PostData | null {
+  return getFilePosts().find((p) => p.id === id) || null
+}
+
+export function getPostBySlug(slug: string): PostData | null {
+  return getFilePosts().find((p) => p.slug === slug) || null
+}
+
+export function createPost(post: PostData): PostData {
+  const posts = getFilePosts()
+  posts.push(post)
+  writeJsonFile(POSTS_FILE, posts)
+  return post
+}
+
+export function updatePost(id: string, updates: Partial<PostData>): PostData | null {
+  const posts = getFilePosts()
+  const index = posts.findIndex((p) => p.id === id)
+  if (index === -1) return null
+  posts[index] = { ...posts[index], ...updates, updatedAt: new Date().toISOString() }
+  writeJsonFile(POSTS_FILE, posts)
+  return posts[index]
+}
+
+export function deletePost(id: string): boolean {
+  const posts = getFilePosts()
+  const index = posts.findIndex((p) => p.id === id)
+  if (index === -1) return false
+  posts.splice(index, 1)
+  writeJsonFile(POSTS_FILE, posts)
+  return true
+}
+
+export function getPostStats(): { total: number; published: number; draft: number; scheduled: number } {
+  const posts = getFilePosts()
   return {
     total: posts.length,
     published: posts.filter((p) => p.status === 'published').length,

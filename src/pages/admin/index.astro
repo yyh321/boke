@@ -2,11 +2,11 @@
 export const prerender = false
 
 import AdminLayout from '../../layouts/AdminLayout.astro'
-import { getPostStats } from '../../lib/db/posts'
-import { getCommentStats } from '../../lib/db/comments'
+import { getPostStatsAsync } from '../../lib/db/posts'
+import { getCommentStatsAsync } from '../../lib/db/comments'
 
-const postStats = getPostStats()
-const commentStats = getCommentStats()
+const postStats = await getPostStatsAsync()
+const commentStats = await getCommentStatsAsync()
 ---
 
 <AdminLayout title="仪表盘">

@@ -1,18 +1,18 @@
 export const prerender = false
 
 import type { APIRoute } from 'astro'
-import { getAllPosts, updatePost } from '../../../lib/db/posts'
 import { cleanSlug } from '../../../lib/seo'
 import type { ApiResponse } from '../../../lib/db/types'
+import { getAllPostsAsync, updatePostAsync } from '../../../lib/db/posts'
 
 export const GET: APIRoute = async () => {
-  const posts = getAllPosts()
+  const posts = await getAllPostsAsync()
   let fixedCount = 0
 
   for (const post of posts) {
     const cleaned = cleanSlug(post.slug)
     if (cleaned !== post.slug) {
-      updatePost(post.id, { slug: cleaned })
+      await updatePostAsync(post.id, { slug: cleaned })
       fixedCount++
     }
   }
