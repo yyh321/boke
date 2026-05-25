@@ -30,7 +30,7 @@
       ]
     },
     {
-      "source": "/assets/(.*)",
+      "source": "/assets/:path*",
       "headers": [
         {
           "key": "Cache-Control",
@@ -39,7 +39,7 @@
       ]
     },
     {
-      "source": "/(.*\\.(svg|png|jpg|jpeg|webp|avif|ico))",
+      "source": "/:path*.(svg|png|jpg|jpeg|webp|avif|ico)",
       "headers": [
         {
           "key": "Cache-Control",
