@@ -1,23 +1,4 @@
----
-import { getCollection } from 'astro:content'
-import { searchPosts, formatDate } from '../lib/utils'
-
-const allPosts = await getCollection('blog')
-const postsJson = JSON.stringify(
-  allPosts
-    .filter((p) => !p.data.draft)
-    .map((p) => ({
-      slug: p.slug,
-      title: p.data.title,
-      description: p.data.description,
-      pubDate: p.data.pubDate.toISOString(),
-      category: p.data.category,
-      tags: p.data.tags,
-    }))
-)
----
-
-<div class="search-container" data-posts={postsJson}>
+<div class="search-container">
   <div class="relative mb-8">
     <svg
       class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400"
@@ -41,21 +22,30 @@ const postsJson = JSON.stringify(
 </div>
 
 <script>
-  interface Post {
-    slug: string
-    title: string
-    description: string
-    pubDate: string
-    category: string
-    tags: string[]
+  let posts = []
+  let loaded = false
+
+  async function loadPosts() {
+    try {
+      const res = await fetch('/api/posts?filter=published')
+      const data = await res.json()
+      if (data.success && data.data) {
+        posts = data.data.map((p) => ({
+          slug: p.slug,
+          title: p.title,
+          description: p.description,
+          pubDate: p.publishDate || p.createdAt,
+          category: p.category,
+          tags: p.tags,
+        }))
+      }
+    } catch {
+      posts = []
+    }
+    loaded = true
   }
 
-  const container = document.querySelector('.search-container') as HTMLElement
-  const input = container.querySelector('.search-input') as HTMLInputElement
-  const resultsContainer = container.querySelector('.search-results') as HTMLElement
-  const posts: Post[] = JSON.parse(container.dataset.posts || '[]')
-
-  function formatDate(dateStr: string): string {
+  function formatDate(dateStr) {
     return new Date(dateStr).toLocaleDateString('zh-CN', {
       year: 'numeric',
       month: 'long',
@@ -63,7 +53,7 @@ const postsJson = JSON.stringify(
     })
   }
 
-  function search(query: string): Post[] {
+  function search(query) {
     const term = query.toLowerCase()
     return posts.filter(
       (post) =>
@@ -73,7 +63,15 @@ const postsJson = JSON.stringify(
     )
   }
 
-  function renderResults(query: string): void {
+  function renderResults(query) {
+    const resultsContainer = document.querySelector('.search-results')
+
+    if (!loaded) {
+      resultsContainer.innerHTML =
+        '<p class="text-center text-gray-400 dark:text-gray-500 py-8">加载中...</p>'
+      return
+    }
+
     if (!query.trim()) {
       resultsContainer.innerHTML =
         '<p class="text-center text-gray-400 dark:text-gray-500 py-8">输入关键词开始搜索</p>'
@@ -126,7 +124,12 @@ const postsJson = JSON.stringify(
     `
   }
 
-  let debounceTimer: ReturnType<typeof setTimeout>
+  const input = document.querySelector('.search-input')
+  const resultsContainer = document.querySelector('.search-results')
+
+  loadPosts().then(() => renderResults(input.value))
+
+  let debounceTimer
   input.addEventListener('input', () => {
     clearTimeout(debounceTimer)
     debounceTimer = setTimeout(() => renderResults(input.value), 200)

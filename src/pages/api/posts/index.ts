@@ -1,6 +1,7 @@
 export const prerender = false
 
 import type { APIRoute } from 'astro'
+import { getCollection } from 'astro:content'
 import { getAllPosts, getPostById, createPost, updatePost, deletePost } from '../../../lib/db/posts'
 import { validatePostTitle, validatePostContent, sanitizeHtml } from '../../../lib/validation'
 import { generateSlug, generateSeoTitle, generateSeoDescription, calculateReadingTime } from '../../../lib/seo'
@@ -23,9 +24,41 @@ export const GET: APIRoute = async ({ url }) => {
     posts = posts.filter((p) => p.status === 'published')
   }
 
-  posts.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+  const contentPosts = await getCollection('blog')
+  const publishedContentPosts = contentPosts
+    .filter((p) => !p.data.draft)
+    .map((p) => ({
+      id: p.slug,
+      title: p.data.title,
+      content: p.body || '',
+      description: p.data.description,
+      category: p.data.category,
+      tags: p.data.tags,
+      coverImage: '',
+      status: 'published' as const,
+      scheduledDate: null,
+      publishDate: p.data.pubDate.toISOString(),
+      createdAt: p.data.pubDate.toISOString(),
+      updatedAt: (p.data.updatedDate || p.data.pubDate).toISOString(),
+      slug: p.slug,
+      seoTitle: p.data.title,
+      seoDescription: p.data.description,
+      author: '博主',
+      readingTime: p.data.readingTime || 0,
+      commentCount: 0,
+    }))
 
-  return new Response(JSON.stringify({ success: true, data: posts }))
+  const allPosts = [...posts, ...publishedContentPosts]
+  const seen = new Set<string>()
+  const merged = allPosts.filter((p) => {
+    if (seen.has(p.slug)) return false
+    seen.add(p.slug)
+    return true
+  })
+
+  merged.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+
+  return new Response(JSON.stringify({ success: true, data: merged }))
 }
 
 export const POST: APIRoute = async ({ request }) => {
