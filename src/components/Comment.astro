@@ -1,0 +1,305 @@
+---
+interface Props {
+  postId: string
+  postTitle: string
+}
+
+const { postId, postTitle } = Astro.props
+---
+
+<section class="mt-16 pt-8 border-t border-gray-200 dark:border-gray-800" aria-label="评论区">
+  <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2" id="comments">
+    评论
+  </h2>
+
+  <div id="comment-app" data-post-id={postId} data-post-title={postTitle}>
+    <div id="comment-list" class="space-y-6 mb-8">
+      <div class="text-center py-8 text-gray-400 dark:text-gray-500">
+        <div class="inline-block w-6 h-6 border-2 border-gray-300 border-t-primary-500 rounded-full animate-spin" />
+        <p class="mt-2 text-sm">加载评论中...</p>
+      </div>
+    </div>
+
+    <div id="comment-form-wrapper" class="bg-gray-50 dark:bg-gray-900 rounded-2xl p-6">
+      <h3 class="text-base font-semibold text-gray-900 dark:text-gray-100 mb-4">发表评论</h3>
+
+      <form id="comment-form" class="space-y-4">
+        <input type="hidden" name="postId" value={postId} />
+        <input type="hidden" name="parentId" id="parentId" value="" />
+        <input type="hidden" name="replyTo" id="replyTo" value="" />
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label for="author" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">昵称 *</label>
+            <input
+              type="text"
+              id="author"
+              name="author"
+              required
+              maxlength="50"
+              class="w-full px-3 py-2 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500"
+              placeholder="您的昵称"
+            />
+          </div>
+          <div>
+            <label for="email" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">邮箱</label>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              class="w-full px-3 py-2 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500"
+              placeholder="选填，用于接收回复通知"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label for="comment-content" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">评论内容 *</label>
+          <textarea
+            id="comment-content"
+            name="content"
+            rows="4"
+            required
+            maxlength="2000"
+            class="w-full px-3 py-2 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 resize-y"
+            placeholder="写下你的想法..."
+          />
+          <p class="mt-1 text-xs text-gray-400 text-right"><span id="comment-char-count">0</span>/2000</p>
+        </div>
+
+        <div id="reply-info" class="hidden text-sm text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-950 rounded-lg px-4 py-2">
+          正在回复 <strong id="reply-author"></strong>
+          <button type="button" id="cancel-reply" class="ml-2 text-gray-500 hover:text-gray-700">取消回复</button>
+        </div>
+
+        <div id="comment-error" class="hidden text-sm text-red-500 bg-red-50 dark:bg-red-950 rounded-lg px-4 py-2"></div>
+
+        <div class="flex items-center gap-3">
+          <button type="submit" class="px-6 py-2.5 bg-primary-600 text-white rounded-xl font-medium hover:bg-primary-700 transition-colors text-sm">
+            提交评论
+          </button>
+          <span class="text-xs text-gray-400">评论需要审核通过后展示</span>
+        </div>
+      </form>
+    </div>
+  </div>
+</section>
+
+<script>
+  interface Comment {
+    id: string
+    postId: string
+    parentId: string | null
+    author: string
+    email: string
+    content: string
+    status: string
+    isPinned: boolean
+    isGuest: boolean
+    replyTo: string | null
+    createdAt: string
+  }
+
+  const container = document.getElementById('comment-app')
+  const postId = container?.dataset.postId || ''
+  const postTitle = container?.dataset.postTitle || ''
+  const listEl = document.getElementById('comment-list')
+  const form = document.getElementById('comment-form') as HTMLFormElement
+  const errorEl = document.getElementById('comment-error')
+  const replyInfo = document.getElementById('reply-info')
+  const replyAuthor = document.getElementById('reply-author')
+  const parentIdInput = document.getElementById('parentId') as HTMLInputElement
+  const replyToInput = document.getElementById('replyTo') as HTMLInputElement
+
+  document.getElementById('comment-content')?.addEventListener('input', (e) => {
+    const el = e.target as HTMLTextAreaElement
+    document.getElementById('comment-char-count')!.textContent = el.value.length.toString()
+  })
+
+  function escapeHtml(text: string): string {
+    const div = document.createElement('div')
+    div.textContent = text
+    return div.innerHTML
+  }
+
+  function formatDate(dateStr: string): string {
+    const date = new Date(dateStr)
+    return date.toLocaleDateString('zh-CN', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  }
+
+  function timeAgo(dateStr: string): string {
+    const now = Date.now()
+    const date = new Date(dateStr).getTime()
+    const diff = now - date
+
+    const minutes = Math.floor(diff / 60000)
+    if (minutes < 1) return '刚刚'
+    if (minutes < 60) return `${minutes} 分钟前`
+
+    const hours = Math.floor(minutes / 60)
+    if (hours < 24) return `${hours} 小时前`
+
+    const days = Math.floor(hours / 24)
+    if (days < 30) return `${days} 天前`
+
+    return formatDate(dateStr)
+  }
+
+  function buildCommentTree(comments: Comment[]): Comment[] {
+    const topLevel: Comment[] = []
+    const replies: Record<string, Comment[]> = {}
+
+    for (const c of comments) {
+      if (!c.parentId) {
+        topLevel.push(c)
+      } else {
+        if (!replies[c.parentId]) {
+          replies[c.parentId] = []
+        }
+        replies[c.parentId].push(c)
+      }
+    }
+
+    const result: Comment[] = []
+    for (const c of topLevel) {
+      result.push(c)
+      if (replies[c.id]) {
+        result.push(...replies[c.id])
+      }
+    }
+
+    return result
+  }
+
+  async function loadComments(): Promise<void> {
+    try {
+      const res = await fetch(`/api/comments?postId=${encodeURIComponent(postId)}`)
+      const data = await res.json()
+
+      if (!data.success || !data.data) {
+        listEl!.innerHTML = '<p class="text-center py-8 text-gray-400">暂无评论</p>'
+        return
+      }
+
+      const comments: Comment[] = data.data
+
+      if (comments.length === 0) {
+        listEl!.innerHTML = '<p class="text-center py-8 text-gray-400 dark:text-gray-500">暂无评论，来发表第一条评论吧</p>'
+        return
+      }
+
+      const sorted = buildCommentTree(comments)
+
+      listEl!.innerHTML = sorted
+        .map((c) => {
+          const isReply = !!c.parentId
+          return `
+            <div class="comment-item ${isReply ? 'ml-8 sm:ml-12' : ''} ${c.isPinned ? 'bg-primary-50/50 dark:bg-primary-950/30 rounded-xl p-4' : ''}" data-id="${c.id}">
+              <div class="flex items-start gap-3">
+                <div class="flex-shrink-0 w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900 flex items-center justify-center text-sm font-medium text-primary-700 dark:text-primary-300">
+                  ${escapeHtml(c.author.charAt(0))}
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2 mb-1">
+                    <span class="text-sm font-medium text-gray-900 dark:text-gray-100">${escapeHtml(c.author)}</span>
+                    ${c.isPinned ? '<span class="text-xs text-primary-600 dark:text-primary-400 font-medium">📌 置顶</span>' : ''}
+                    ${!c.isGuest ? '<span class="text-xs bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300 px-1.5 py-0.5 rounded">博主</span>' : ''}
+                    <span class="text-xs text-gray-400 dark:text-gray-500">${timeAgo(c.createdAt)}</span>
+                  </div>
+                  ${c.replyTo ? `<p class="text-xs text-gray-400 dark:text-gray-500 mb-1">回复 @${escapeHtml(c.replyTo)}</p>` : ''}
+                  <p class="text-sm text-gray-700 dark:text-gray-300">${escapeHtml(c.content)}</p>
+                  <button class="reply-btn text-xs text-primary-600 dark:text-primary-400 hover:text-primary-700 mt-1" data-id="${c.id}" data-author="${escapeHtml(c.author)}">回复</button>
+                </div>
+              </div>
+            </div>
+          `
+        })
+        .join('')
+
+      document.querySelectorAll('.reply-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const id = (btn as HTMLElement).dataset.id
+          const author = (btn as HTMLElement).dataset.author
+          parentIdInput.value = id || ''
+          replyToInput.value = author || ''
+          replyAuthor!.textContent = author || ''
+          replyInfo!.classList.remove('hidden')
+          document.getElementById('comment-content')?.focus()
+        })
+      })
+    } catch {
+      listEl!.innerHTML = '<p class="text-center py-8 text-red-400">加载评论失败</p>'
+    }
+  }
+
+  document.getElementById('cancel-reply')?.addEventListener('click', () => {
+    parentIdInput.value = ''
+    replyToInput.value = ''
+    replyInfo!.classList.add('hidden')
+  })
+
+  form?.addEventListener('submit', async (e) => {
+    e.preventDefault()
+
+    const formData = new FormData(form)
+
+    const payload: Record<string, unknown> = {
+      postId: formData.get('postId'),
+      author: formData.get('author'),
+      email: formData.get('email'),
+      content: formData.get('content'),
+      parentId: formData.get('parentId') || null,
+      replyTo: formData.get('replyTo') || null,
+      isGuest: true,
+    }
+
+    errorEl!.classList.add('hidden')
+    const submitBtn = form.querySelector('button[type="submit"]') as HTMLButtonElement
+    submitBtn.disabled = true
+    submitBtn.textContent = '提交中...'
+
+    try {
+      const res = await fetch('/api/comments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+
+      const data = await res.json()
+
+      if (data.success) {
+        if (data.message) {
+          errorEl!.textContent = data.message
+          errorEl!.classList.remove('hidden')
+          errorEl!.classList.add('text-green-500', 'bg-green-50')
+          errorEl!.classList.remove('text-red-500', 'bg-red-50')
+        }
+        form.reset()
+        document.getElementById('comment-char-count')!.textContent = '0'
+        parentIdInput.value = ''
+        replyToInput.value = ''
+        replyInfo!.classList.add('hidden')
+        loadComments()
+      } else {
+        errorEl!.textContent = data.error || '提交失败'
+        errorEl!.classList.remove('hidden', 'text-green-500', 'bg-green-50')
+        errorEl!.classList.add('text-red-500', 'bg-red-50')
+      }
+    } catch {
+      errorEl!.textContent = '网络错误，请重试'
+      errorEl!.classList.remove('hidden', 'text-green-500', 'bg-green-50')
+      errorEl!.classList.add('text-red-500', 'bg-red-50')
+    } finally {
+      submitBtn.disabled = false
+      submitBtn.textContent = '提交评论'
+    }
+  })
+
+  loadComments()
+</script>

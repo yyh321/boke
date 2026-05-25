@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.vercel/
+.env
+.env.local
+*.log
+.cache
+astro/.astro
+.data/
+uploads/

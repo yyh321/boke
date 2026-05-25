@@ -1,0 +1,53 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro'
+import Header from '../../components/Header.astro'
+import Footer from '../../components/Footer.astro'
+import ArticleCard from '../../components/ArticleCard.astro'
+import { getCollection } from 'astro:content'
+import { getSortedPosts, getPostsByCategory, getAllCategories } from '../../lib/utils'
+
+export async function getStaticPaths() {
+  const posts = await getCollection('blog')
+  const categories = getAllCategories(posts)
+
+  return categories.map((category) => ({
+    params: { category },
+    props: { category, allPosts: posts },
+  }))
+}
+
+const { category, allPosts } = Astro.props
+const sortedPosts = getSortedPosts(allPosts)
+const categoryPosts = getPostsByCategory(sortedPosts, category)
+---
+
+<BaseLayout
+  title={`${category} - 分类`}
+  description={`浏览 ${category} 分类下的文章`}
+>
+  <Header slot="header" />
+  <Footer slot="footer" />
+
+  <div class="container-main py-16 animate-fade-in">
+    <nav class="mb-8" aria-label="面包屑导航">
+      <ol class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+        <li><a href="/categories" class="hover:text-primary-600 dark:hover:text-primary-400 transition-colors">分类</a></li>
+        <li><span aria-hidden="true">/</span></li>
+        <li class="text-gray-900 dark:text-gray-100 font-medium" aria-current="page">{category}</li>
+      </ol>
+    </nav>
+
+    <h1 class="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+      {category}
+    </h1>
+    <p class="text-gray-500 dark:text-gray-400 mb-8">
+      共 {categoryPosts.length} 篇文章
+    </p>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {categoryPosts.map((post) => (
+        <ArticleCard post={post} />
+      ))}
+    </div>
+  </div>
+</BaseLayout>

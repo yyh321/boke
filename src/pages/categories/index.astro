@@ -1,0 +1,63 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro'
+import Header from '../../components/Header.astro'
+import Footer from '../../components/Footer.astro'
+import ArticleCard from '../../components/ArticleCard.astro'
+import { getCollection } from 'astro:content'
+import { getSortedPosts, getAllCategories, getPostsByCategory } from '../../lib/utils'
+
+const allPosts = await getCollection('blog')
+const sortedPosts = getSortedPosts(allPosts)
+const categories = getAllCategories(allPosts)
+---
+
+<BaseLayout
+  title="文章分类"
+  description="按分类浏览博客文章"
+>
+  <Header slot="header" />
+  <Footer slot="footer" />
+
+  <div class="container-main py-16 animate-fade-in">
+    <h1 class="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-8">
+      文章分类
+    </h1>
+
+    <div class="flex flex-wrap gap-3 mb-12">
+      <a
+        href="/categories"
+        class="tag"
+      >
+        全部分类
+      </a>
+      {categories.map((category) => (
+        <a
+          href={`/categories/${category}`}
+          class="tag hover:bg-primary-100 dark:hover:bg-primary-900 transition-colors"
+        >
+          {category}
+        </a>
+      ))}
+    </div>
+
+    {categories.map((category) => {
+      const categoryPosts = getPostsByCategory(sortedPosts, category)
+      return (
+        <section class="mb-12">
+          <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6 flex items-center gap-2">
+            <span class="w-1 h-5 bg-primary-500 rounded-full" aria-hidden="true" />
+            {category}
+            <span class="text-sm font-normal text-gray-400 dark:text-gray-500">
+              ({categoryPosts.length} 篇)
+            </span>
+          </h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {categoryPosts.map((post) => (
+              <ArticleCard post={post} />
+            ))}
+          </div>
+        </section>
+      )
+    })}
+  </div>
+</BaseLayout>

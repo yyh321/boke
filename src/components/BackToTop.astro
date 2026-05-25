@@ -1,0 +1,66 @@
+<button class="back-to-top" aria-label="回到顶部">
+  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" />
+  </svg>
+</button>
+
+<script>
+  const button = document.querySelector('.back-to-top') as HTMLElement
+
+  function checkVisibility(): void {
+    if (window.scrollY > 300) {
+      button.classList.add('visible')
+    } else {
+      button.classList.remove('visible')
+    }
+  }
+
+  window.addEventListener('scroll', checkVisibility, { passive: true })
+
+  button.addEventListener('click', () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  })
+</script>
+
+<style>
+  .back-to-top {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    width: 3rem;
+    height: 3rem;
+    border-radius: 9999px;
+    background: theme('colors.primary.600');
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    opacity: 0;
+    transform: translateY(1rem);
+    transition: opacity 0.3s, transform 0.3s;
+    border: none;
+    cursor: pointer;
+    z-index: 40;
+  }
+
+  .back-to-top.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .back-to-top:hover {
+    background: theme('colors.primary.700');
+    transform: translateY(-2px);
+  }
+
+  .back-to-top.visible:hover {
+    transform: translateY(-2px);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .back-to-top {
+      transition: none;
+    }
+  }
+</style>

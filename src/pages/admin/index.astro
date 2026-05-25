@@ -1,0 +1,63 @@
+---
+export const prerender = false
+
+import AdminLayout from '../../layouts/AdminLayout.astro'
+import { getPostStats } from '../../lib/db/posts'
+import { getCommentStats } from '../../lib/db/comments'
+
+const postStats = getPostStats()
+const commentStats = getCommentStats()
+---
+
+<AdminLayout title="仪表盘">
+  <div class="flex items-center justify-between mb-8">
+    <h1 class="text-2xl font-bold text-gray-900">仪表盘</h1>
+  </div>
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <div class="bg-white rounded-2xl border border-gray-200 p-6">
+      <p class="text-sm text-gray-500 mb-1">文章总数</p>
+      <p class="text-3xl font-bold text-gray-900">{postStats.total}</p>
+    </div>
+    <div class="bg-white rounded-2xl border border-gray-200 p-6">
+      <p class="text-sm text-gray-500 mb-1">已发布</p>
+      <p class="text-3xl font-bold text-green-600">{postStats.published}</p>
+    </div>
+    <div class="bg-white rounded-2xl border border-gray-200 p-6">
+      <p class="text-sm text-gray-500 mb-1">草稿</p>
+      <p class="text-3xl font-bold text-yellow-600">{postStats.draft}</p>
+    </div>
+    <div class="bg-white rounded-2xl border border-gray-200 p-6">
+      <p class="text-sm text-gray-500 mb-1">定时发布</p>
+      <p class="text-3xl font-bold text-blue-600">{postStats.scheduled}</p>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
+    <div class="bg-white rounded-2xl border border-gray-200 p-6">
+      <p class="text-sm text-gray-500 mb-1">评论总数</p>
+      <p class="text-3xl font-bold text-gray-900">{commentStats.total}</p>
+    </div>
+    <div class="bg-white rounded-2xl border border-gray-200 p-6">
+      <p class="text-sm text-gray-500 mb-1">待审核</p>
+      <p class="text-3xl font-bold text-orange-600">{commentStats.pending}</p>
+    </div>
+    <div class="bg-white rounded-2xl border border-gray-200 p-6">
+      <p class="text-sm text-gray-500 mb-1">已通过</p>
+      <p class="text-3xl font-bold text-green-600">{commentStats.approved}</p>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <a href="/admin/posts/new" class="block bg-primary-600 text-white rounded-2xl p-8 hover:bg-primary-700 transition-colors">
+      <h3 class="text-lg font-semibold mb-2">写新文章</h3>
+      <p class="text-primary-100 text-sm">创建一篇新的博客文章</p>
+    </a>
+    <a href="/admin/comments" class="block bg-orange-600 text-white rounded-2xl p-8 hover:bg-orange-700 transition-colors">
+      <h3 class="text-lg font-semibold mb-2">评论管理</h3>
+      <p class="text-orange-100 text-sm">
+        {commentStats.pending > 0 ? `有 ${commentStats.pending} 条评论待审核` : '暂无待审核评论'}
+      </p>
+    </a>
+  </div>
+</AdminLayout>

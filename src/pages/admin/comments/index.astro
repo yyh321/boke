@@ -1,0 +1,142 @@
+---
+export const prerender = false
+
+import AdminLayout from '../../../layouts/AdminLayout.astro'
+import { getAllComments } from '../../../lib/db/comments'
+import { getPostById } from '../../../lib/db/posts'
+
+const comments = getAllComments()
+---
+
+<AdminLayout title="评论管理">
+  <div class="flex items-center justify-between mb-8">
+    <h1 class="text-2xl font-bold text-gray-900">评论管理</h1>
+  </div>
+
+  {comments.length === 0 ? (
+    <div class="text-center py-16 text-gray-400">
+      <p class="text-lg">暂无评论</p>
+    </div>
+  ) : (
+    <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+      <table class="w-full">
+        <thead>
+          <tr class="border-b border-gray-100 bg-gray-50">
+            <th class="text-left px-6 py-3 text-sm font-medium text-gray-500">作者</th>
+            <th class="text-left px-6 py-3 text-sm font-medium text-gray-500">内容</th>
+            <th class="text-left px-6 py-3 text-sm font-medium text-gray-500">文章</th>
+            <th class="text-left px-6 py-3 text-sm font-medium text-gray-500">状态</th>
+            <th class="text-left px-6 py-3 text-sm font-medium text-gray-500">时间</th>
+            <th class="text-right px-6 py-3 text-sm font-medium text-gray-500">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {comments.map((comment) => {
+            const post = getPostById(comment.postId)
+            return (
+              <tr class="border-b border-gray-50 hover:bg-gray-50 transition-colors" data-id={comment.id}>
+                <td class="px-6 py-4">
+                  <div class="text-sm font-medium text-gray-900">{comment.author}</div>
+                  <div class="text-xs text-gray-400">{comment.email || '未填写邮箱'}</div>
+                  <div class="text-xs text-gray-400">{comment.isGuest ? '游客' : '博主'}</div>
+                </td>
+                <td class="px-6 py-4 max-w-xs">
+                  <p class="text-sm text-gray-600 line-clamp-2">{comment.content}</p>
+                  {comment.replyTo && (
+                    <p class="text-xs text-gray-400 mt-1">回复 @{comment.replyTo}</p>
+                  )}
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-500">
+                  {post ? (
+                    <a href={`/blog/${post.slug}`} target="_blank" class="hover:text-primary-600">{post.title}</a>
+                  ) : '已删除'}
+                </td>
+                <td class="px-6 py-4">
+                  <span class={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    comment.status === 'approved' ? 'bg-green-100 text-green-700' :
+                    comment.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                    'bg-red-100 text-red-700'
+                  }`}>
+                    {comment.status === 'approved' ? '已通过' : comment.status === 'pending' ? '待审核' : '已拒绝'}
+                  </span>
+                  {comment.isPinned && (
+                    <span class="ml-1 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">置顶</span>
+                  )}
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-400">
+                  {new Date(comment.createdAt).toLocaleString('zh-CN')}
+                </td>
+                <td class="px-6 py-4 text-right">
+                  <div class="flex items-center justify-end gap-2">
+                    {comment.status === 'pending' && (
+                      <>
+                        <button class="approve-btn text-sm text-green-600 hover:text-green-700" data-id={comment.id}>通过</button>
+                        <button class="reject-btn text-sm text-red-500 hover:text-red-700" data-id={comment.id}>拒绝</button>
+                      </>
+                    )}
+                    {comment.status === 'approved' && (
+                      <button class="pin-btn text-sm text-blue-600 hover:text-blue-700" data-id={comment.id}>
+                        {comment.isPinned ? '取消置顶' : '置顶'}
+                      </button>
+                    )}
+                    <button class="delete-btn text-sm text-red-500 hover:text-red-700" data-id={comment.id}>删除</button>
+                  </div>
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </div>
+  )}
+
+  <script>
+    async function handleAction(id, action) {
+      try {
+        const res = await fetch('/api/comments', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, action }),
+        })
+        const data = await res.json()
+        if (data.success) {
+          window.location.reload()
+        } else {
+          alert(data.error || '操作失败')
+        }
+      } catch {
+        alert('网络错误')
+      }
+    }
+
+    document.querySelectorAll('.approve-btn').forEach((btn) => {
+      btn.addEventListener('click', () => handleAction(btn.dataset.id, 'approve'))
+    })
+
+    document.querySelectorAll('.reject-btn').forEach((btn) => {
+      btn.addEventListener('click', () => handleAction(btn.dataset.id, 'reject'))
+    })
+
+    document.querySelectorAll('.pin-btn').forEach((btn) => {
+      btn.addEventListener('click', () => handleAction(btn.dataset.id, 'pin'))
+    })
+
+    document.querySelectorAll('.delete-btn').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('确定要删除这条评论吗？')) return
+        try {
+          const res = await fetch('/api/comments', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: btn.dataset.id }),
+          })
+          const data = await res.json()
+          if (data.success) window.location.reload()
+          else alert(data.error || '删除失败')
+        } catch {
+          alert('网络错误')
+        }
+      })
+    })
+  </script>
+</AdminLayout>

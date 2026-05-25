@@ -1,0 +1,96 @@
+---
+import BaseLayout from './BaseLayout.astro'
+import Header from '../components/Header.astro'
+import Footer from '../components/Footer.astro'
+import ToC from '../components/ToC.astro'
+import Comment from '../components/Comment.astro'
+import BackToTop from '../components/BackToTop.astro'
+import { formatDate } from '../lib/utils'
+import type { CollectionEntry } from 'astro:content'
+
+interface Props {
+  post: CollectionEntry<'blog'>
+}
+
+const { post } = Astro.props
+const { data, body } = post
+const slug = post.slug
+---
+
+<BaseLayout
+  title={data.title}
+  description={data.description}
+  type="article"
+  pubDate={data.pubDate}
+  tags={data.tags}
+>
+  <Header slot="header" />
+  <Footer slot="footer" />
+
+  <div class="container-main py-12 animate-fade-in">
+    <div class="lg:grid lg:grid-cols-[1fr_250px] lg:gap-10">
+      <article>
+        <header class="mb-10">
+          <div class="flex flex-wrap items-center gap-2 mb-4">
+            {data.category && (
+              <a
+                href={`/categories/${data.category}`}
+                class="tag"
+              >
+                {data.category}
+              </a>
+            )}
+            {data.tags?.map((tag) => (
+              <a
+                href={`/tags/${tag}`}
+                class="text-sm text-gray-400 dark:text-gray-500 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+              >
+                #{tag}
+              </a>
+            ))}
+          </div>
+
+          <h1 class="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-4 text-balance">
+            {data.title}
+          </h1>
+
+          <p class="text-lg text-gray-500 dark:text-gray-400 mb-4">
+            {data.description}
+          </p>
+
+          <div class="flex flex-wrap items-center gap-4 text-sm text-gray-400 dark:text-gray-500">
+            <time datetime={data.pubDate.toISOString()}>
+              {formatDate(data.pubDate)}
+            </time>
+            {data.updatedDate && (
+              <>
+                <span aria-hidden="true">&middot;</span>
+                <span>更新于 <time datetime={data.updatedDate.toISOString()}>{formatDate(data.updatedDate)}</time></span>
+              </>
+            )}
+            {data.readingTime && (
+              <>
+                <span aria-hidden="true">&middot;</span>
+                <span>{data.readingTime} 分钟阅读</span>
+              </>
+            )}
+          </div>
+        </header>
+
+        <div class="prose">
+          <slot />
+        </div>
+
+        <Comment postId={slug} postTitle={data.title} />
+      </article>
+
+      {body && (
+        <aside class="hidden lg:block">
+          <ToC content={body} />
+        </aside>
+      )}
+    </div>
+  </div>
+
+  <BackToTop />
+</BaseLayout>

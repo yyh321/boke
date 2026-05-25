@@ -1,0 +1,372 @@
+---
+export const prerender = false
+
+import AdminLayout from '../../../../layouts/AdminLayout.astro'
+import { getPostById } from '../../../../lib/db/posts'
+
+const { id } = Astro.params
+const post = id ? getPostById(id) : null
+const isNew = !post
+---
+
+<AdminLayout title={isNew ? '写新文章' : '编辑文章'}>
+  <div class="flex items-center justify-between mb-8">
+    <h1 class="text-2xl font-bold text-gray-900">{isNew ? '写新文章' : '编辑文章'}</h1>
+    <a href="/admin/posts" class="text-sm text-gray-500 hover:text-gray-700">&larr; 返回文章列表</a>
+  </div>
+
+  <form id="post-form" class="space-y-6">
+    <input type="hidden" name="id" value={post?.id || ''} />
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div class="lg:col-span-2 space-y-6">
+        <div class="bg-white rounded-2xl border border-gray-200 p-6">
+          <h2 class="text-sm font-semibold text-gray-900 mb-4">文章内容</h2>
+
+          <div class="space-y-4">
+            <div>
+              <label for="title" class="block text-sm font-medium text-gray-700 mb-1">标题 *</label>
+              <input
+                type="text"
+                id="title"
+                name="title"
+                value={post?.title || ''}
+                required
+                class="w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-primary-500 focus:border-transparent text-lg font-medium"
+                placeholder="输入文章标题"
+              />
+            </div>
+
+            <div>
+              <label for="content" class="block text-sm font-medium text-gray-700 mb-1">内容 (Markdown) *</label>
+              <div class="border border-gray-300 rounded-xl overflow-hidden">
+                <div class="flex items-center gap-1 px-3 py-2 bg-gray-50 border-b border-gray-200">
+                  <button type="button" class="toolbar-btn px-2 py-1 text-sm rounded hover:bg-gray-200" data-tag="**" data-end="**" title="加粗"><strong>B</strong></button>
+                  <button type="button" class="toolbar-btn px-2 py-1 text-sm rounded hover:bg-gray-200" data-tag="*" data-end="*" title="斜体"><em>I</em></button>
+                  <button type="button" class="toolbar-btn px-2 py-1 text-sm rounded hover:bg-gray-200" data-tag="# " data-end="" title="标题">H</button>
+                  <button type="button" class="toolbar-btn px-2 py-1 text-sm rounded hover:bg-gray-200" data-tag="[链接文字](url)" data-end="" title="链接">🔗</button>
+                  <button type="button" class="toolbar-btn px-2 py-1 text-sm rounded hover:bg-gray-200" data-tag="```\n" data-end="\n```" title="代码块">&lt;/&gt;</button>
+                  <button type="button" class="toolbar-btn px-2 py-1 text-sm rounded hover:bg-gray-200" data-tag="- " data-end="" title="列表">•</button>
+                  <button type="button" class="toolbar-btn px-2 py-1 text-sm rounded hover:bg-gray-200" data-tag="> " data-end="" title="引用">❝</button>
+                  <span class="flex-1" />
+                  <button type="button" id="preview-toggle" class="text-xs text-gray-500 hover:text-gray-700">预览</button>
+                </div>
+                <textarea
+                  id="content"
+                  name="content"
+                  rows="20"
+                  class="w-full px-4 py-3 font-mono text-sm border-0 focus:ring-0 resize-y"
+                  placeholder="使用 Markdown 语法编写文章..."
+                >{post?.content || ''}</textarea>
+                <div id="preview" class="hidden px-4 py-3 prose prose-sm max-w-none"></div>
+              </div>
+              <p class="mt-1 text-xs text-gray-400" id="word-count">0 字符</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="space-y-6">
+        <div class="bg-white rounded-2xl border border-gray-200 p-6">
+          <h2 class="text-sm font-semibold text-gray-900 mb-4">发布设置</h2>
+          <div class="space-y-4">
+            <div>
+              <label for="status" class="block text-sm font-medium text-gray-700 mb-1">发布状态</label>
+              <select id="status" name="status" class="w-full px-3 py-2 rounded-xl border border-gray-300 focus:ring-2 focus:ring-primary-500">
+                <option value="draft" {post?.status === 'draft' ? 'selected' : ''}>草稿</option>
+                <option value="published" {post?.status === 'published' ? 'selected' : ''}>立即发布</option>
+                <option value="scheduled" {post?.status === 'scheduled' ? 'selected' : ''}>定时发布</option>
+              </select>
+            </div>
+
+            <div id="scheduled-date-wrapper" class={post?.status === 'scheduled' ? '' : 'hidden'}>
+              <label for="scheduledDate" class="block text-sm font-medium text-gray-700 mb-1">定时发布时间</label>
+              <input
+                type="datetime-local"
+                id="scheduledDate"
+                name="scheduledDate"
+                value={post?.scheduledDate ? new Date(post.scheduledDate).toISOString().slice(0, 16) : ''}
+                class="w-full px-3 py-2 rounded-xl border border-gray-300 focus:ring-2 focus:ring-primary-500"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-gray-200 p-6">
+          <h2 class="text-sm font-semibold text-gray-900 mb-4">分类与标签</h2>
+          <div class="space-y-4">
+            <div>
+              <label for="category" class="block text-sm font-medium text-gray-700 mb-1">分类</label>
+              <select id="category" name="category" class="w-full px-3 py-2 rounded-xl border border-gray-300 focus:ring-2 focus:ring-primary-500">
+                <option value="技术" {post?.category === '技术' ? 'selected' : ''}>技术</option>
+                <option value="生活" {post?.category === '生活' ? 'selected' : ''}>生活</option>
+                <option value="随笔" {post?.category === '随笔' ? 'selected' : ''}>随笔</option>
+                <option value="教程" {post?.category === '教程' ? 'selected' : ''}>教程</option>
+                <option value="未分类" {post?.category === '未分类' ? 'selected' : ''}>未分类</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="tags" class="block text-sm font-medium text-gray-700 mb-1">标签（逗号分隔）</label>
+              <input
+                type="text"
+                id="tags"
+                name="tags"
+                value={post?.tags?.join(', ') || ''}
+                class="w-full px-3 py-2 rounded-xl border border-gray-300 focus:ring-2 focus:ring-primary-500"
+                placeholder="Astro, TypeScript, 前端"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-gray-200 p-6">
+          <h2 class="text-sm font-semibold text-gray-900 mb-4">SEO 设置</h2>
+          <div class="space-y-4">
+            <div>
+              <label for="seoTitle" class="block text-sm font-medium text-gray-700 mb-1">SEO 标题</label>
+              <input
+                type="text"
+                id="seoTitle"
+                name="seoTitle"
+                value={post?.seoTitle || ''}
+                class="w-full px-3 py-2 rounded-xl border border-gray-300 focus:ring-2 focus:ring-primary-500"
+                placeholder="自动生成"
+                maxlength="60"
+              />
+              <p class="mt-1 text-xs text-gray-400" id="seo-title-count">0/60</p>
+            </div>
+            <div>
+              <label for="seoDescription" class="block text-sm font-medium text-gray-700 mb-1">SEO 描述</label>
+              <textarea
+                id="seoDescription"
+                name="seoDescription"
+                rows="3"
+                class="w-full px-3 py-2 rounded-xl border border-gray-300 focus:ring-2 focus:ring-primary-500"
+                placeholder="自动生成"
+                maxlength="160"
+              >{post?.seoDescription || ''}</textarea>
+              <p class="mt-1 text-xs text-gray-400" id="seo-desc-count">0/160</p>
+            </div>
+            <div>
+              <label for="slug" class="block text-sm font-medium text-gray-700 mb-1">自定义链接</label>
+              <input
+                type="text"
+                id="slug"
+                name="slug"
+                value={post?.slug || ''}
+                class="w-full px-3 py-2 rounded-xl border border-gray-300 focus:ring-2 focus:ring-primary-500"
+                placeholder="自动生成"
+              />
+              <p class="mt-1 text-xs text-gray-400">留空则自动生成唯一链接</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-gray-200 p-6">
+          <h2 class="text-sm font-semibold text-gray-900 mb-4">封面图</h2>
+          <div>
+            <label for="coverImage" class="block text-sm font-medium text-gray-700 mb-1">图片 URL</label>
+            <input
+              type="url"
+              id="coverImage"
+              name="coverImage"
+              value={post?.coverImage || ''}
+              class="w-full px-3 py-2 rounded-xl border border-gray-300 focus:ring-2 focus:ring-primary-500"
+              placeholder="https://example.com/image.jpg"
+            />
+            <div id="cover-preview" class="mt-2 {post?.coverImage ? '' : 'hidden'}">
+              <img src={post?.coverImage || ''} alt="封面预览" class="w-full h-32 object-cover rounded-lg" />
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="flex items-center justify-end gap-3">
+      <span id="validation-errors" class="text-sm text-red-500 flex-1"></span>
+      <button type="button" id="save-draft" class="px-6 py-2.5 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors">保存草稿</button>
+      <button type="submit" class="px-6 py-2.5 bg-primary-600 text-white rounded-xl font-medium hover:bg-primary-700 transition-colors">
+        {isNew ? '发布文章' : '保存修改'}
+      </button>
+    </div>
+  </form>
+
+  <script>
+    const form = document.getElementById('post-form')
+    const contentArea = document.getElementById('content')
+    const titleInput = document.getElementById('title')
+    const statusSelect = document.getElementById('status')
+    const scheduledWrapper = document.getElementById('scheduled-date-wrapper')
+    const seoTitleInput = document.getElementById('seoTitle')
+    const seoDescInput = document.getElementById('seoDescription')
+    const coverImageInput = document.getElementById('coverImage')
+    const coverPreview = document.getElementById('cover-preview')
+    const wordCount = document.getElementById('word-count')
+    const previewToggle = document.getElementById('preview-toggle')
+    const preview = document.getElementById('preview')
+
+    statusSelect?.addEventListener('change', () => {
+      scheduledWrapper.classList.toggle('hidden', statusSelect.value !== 'scheduled')
+    })
+
+    contentArea?.addEventListener('input', () => {
+      const len = contentArea.value.length
+      wordCount.textContent = `${len} 字符`
+    })
+
+    contentArea?.dispatchEvent(new Event('input'))
+
+    titleInput?.addEventListener('input', () => {
+      if (!seoTitleInput?.value || seoTitleInput.dataset.auto !== 'false') {
+        if (seoTitleInput) {
+          seoTitleInput.value = titleInput.value ? `${titleInput.value} | 个人博客` : ''
+          seoTitleInput.dataset.auto = 'false'
+        }
+      }
+      if (seoTitleInput) {
+        seoTitleInput.dispatchEvent(new Event('input'))
+      }
+    })
+
+    seoTitleInput?.addEventListener('input', () => {
+      const count = document.getElementById('seo-title-count')
+      if (count) {
+        count.textContent = `${seoTitleInput.value.length}/60`
+      }
+    })
+
+    seoDescInput?.addEventListener('input', () => {
+      const count = document.getElementById('seo-desc-count')
+      if (count) {
+        count.textContent = `${seoDescInput.value.length}/160`
+      }
+    })
+
+    coverImageInput?.addEventListener('input', () => {
+      if (coverImageInput.value) {
+        coverPreview.classList.remove('hidden')
+        coverPreview.querySelector('img').src = coverImageInput.value
+      } else {
+        coverPreview.classList.add('hidden')
+      }
+    })
+
+    document.querySelectorAll('.toolbar-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const tag = btn.dataset.tag
+        const end = btn.dataset.end
+        const start = contentArea.selectionStart
+        const endPos = contentArea.selectionEnd
+        const text = contentArea.value.substring(start, endPos)
+        const before = contentArea.value.substring(0, start)
+        const after = contentArea.value.substring(endPos)
+
+        if (text) {
+          contentArea.value = before + tag + text + end + after
+        } else {
+          contentArea.value = before + tag + end + after
+        }
+
+        const cursorPos = start + tag.length + (text ? text.length : 0) + end.length
+        contentArea.focus()
+        contentArea.setSelectionRange(cursorPos, cursorPos)
+        contentArea.dispatchEvent(new Event('input'))
+      })
+    })
+
+    let previewVisible = false
+    previewToggle?.addEventListener('click', async () => {
+      previewVisible = !previewVisible
+      contentArea.classList.toggle('hidden', previewVisible)
+      preview.classList.toggle('hidden', !previewVisible)
+      previewToggle.textContent = previewVisible ? '编辑' : '预览'
+
+      if (previewVisible) {
+        const res = await fetch('https://api.github.com/markdown', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: contentArea.value, mode: 'gfm' }),
+        })
+        if (res.ok) {
+          const html = await res.text()
+          preview.innerHTML = html
+        } else {
+          preview.innerHTML = `<pre class="text-gray-500">${contentArea.value}</pre>`
+        }
+      }
+    })
+
+    async function savePost(status) {
+      const title = document.getElementById('title').value
+      const content = document.getElementById('content').value
+      const errors = document.getElementById('validation-errors')
+
+      if (!title || !title.trim()) {
+        errors.textContent = '请输入文章标题'
+        return
+      }
+      if (!content || !content.trim()) {
+        errors.textContent = '请输入文章内容'
+        return
+      }
+
+      errors.textContent = ''
+
+      const tags = document.getElementById('tags').value
+        .split(/[,，]/)
+        .map((t) => t.trim())
+        .filter(Boolean)
+
+      const payload = {
+        id: document.querySelector('input[name="id"]').value || undefined,
+        title: title.trim(),
+        content: content,
+        description: document.getElementById('seoDescription').value || content.substring(0, 160).replace(/[#*`~]/g, '').trim(),
+        category: document.getElementById('category').value,
+        tags,
+        coverImage: document.getElementById('coverImage').value,
+        status: status || document.getElementById('status').value,
+        scheduledDate: document.getElementById('scheduledDate').value || null,
+        seoTitle: document.getElementById('seoTitle').value || undefined,
+        seoDescription: document.getElementById('seoDescription').value || undefined,
+        slug: document.getElementById('slug').value || undefined,
+      }
+
+      const isNew = !payload.id
+
+      try {
+        const res = await fetch('/api/posts', {
+          method: isNew ? 'POST' : 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+
+        const data = await res.json()
+
+        if (data.success) {
+          if (isNew && data.data?.id) {
+            window.location.href = `/admin/posts/edit/${data.data.id}`
+          } else {
+            window.location.reload()
+          }
+        } else {
+          errors.textContent = data.error || '保存失败'
+        }
+      } catch {
+        errors.textContent = '网络错误，请重试'
+      }
+    }
+
+    form?.addEventListener('submit', async (e) => {
+      e.preventDefault()
+      await savePost()
+    })
+
+    document.getElementById('save-draft')?.addEventListener('click', async () => {
+      document.getElementById('status').value = 'draft'
+      await savePost('draft')
+    })
+  </script>
+</AdminLayout>

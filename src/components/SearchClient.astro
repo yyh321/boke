@@ -1,0 +1,145 @@
+---
+import { getCollection } from 'astro:content'
+import { searchPosts, formatDate } from '../lib/utils'
+
+const allPosts = await getCollection('blog')
+const postsJson = JSON.stringify(
+  allPosts
+    .filter((p) => !p.data.draft)
+    .map((p) => ({
+      slug: p.slug,
+      title: p.data.title,
+      description: p.data.description,
+      pubDate: p.data.pubDate.toISOString(),
+      category: p.data.category,
+      tags: p.data.tags,
+    }))
+)
+---
+
+<div class="search-container" data-posts={postsJson}>
+  <div class="relative mb-8">
+    <svg
+      class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+    </svg>
+    <input
+      type="search"
+      class="search-input w-full pl-12 pr-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+      placeholder="搜索文章标题、内容或标签..."
+      aria-label="搜索文章"
+      autocomplete="off"
+    />
+  </div>
+
+  <div class="search-results" role="list" aria-label="搜索结果" />
+</div>
+
+<script>
+  interface Post {
+    slug: string
+    title: string
+    description: string
+    pubDate: string
+    category: string
+    tags: string[]
+  }
+
+  const container = document.querySelector('.search-container') as HTMLElement
+  const input = container.querySelector('.search-input') as HTMLInputElement
+  const resultsContainer = container.querySelector('.search-results') as HTMLElement
+  const posts: Post[] = JSON.parse(container.dataset.posts || '[]')
+
+  function formatDate(dateStr: string): string {
+    return new Date(dateStr).toLocaleDateString('zh-CN', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    })
+  }
+
+  function search(query: string): Post[] {
+    const term = query.toLowerCase()
+    return posts.filter(
+      (post) =>
+        post.title.toLowerCase().includes(term) ||
+        post.description.toLowerCase().includes(term) ||
+        post.tags.some((tag) => tag.toLowerCase().includes(term))
+    )
+  }
+
+  function renderResults(query: string): void {
+    if (!query.trim()) {
+      resultsContainer.innerHTML =
+        '<p class="text-center text-gray-400 dark:text-gray-500 py-8">输入关键词开始搜索</p>'
+      return
+    }
+
+    const results = search(query)
+
+    if (results.length === 0) {
+      resultsContainer.innerHTML =
+        '<p class="text-center text-gray-400 dark:text-gray-500 py-8">未找到匹配的文章</p>'
+      return
+    }
+
+    resultsContainer.innerHTML = `
+      <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
+        找到 ${results.length} 篇相关文章
+      </p>
+      <div class="space-y-4">
+        ${results
+          .map(
+            (post) => `
+          <article class="card p-5 group" role="listitem">
+            <div class="flex flex-wrap items-center gap-2 mb-2">
+              <span class="tag text-xs">${post.category}</span>
+              ${post.tags
+                .slice(0, 2)
+                .map(
+                  (tag) =>
+                    `<span class="text-xs text-gray-400">#${tag}</span>`
+                )
+                .join('')}
+            </div>
+            <h2 class="text-lg font-semibold mb-1">
+              <a href="/blog/${post.slug}" class="text-gray-900 dark:text-gray-100 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
+                ${post.title}
+              </a>
+            </h2>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-2 line-clamp-2">
+              ${post.description}
+            </p>
+            <time class="text-xs text-gray-400 dark:text-gray-500">
+              ${formatDate(post.pubDate)}
+            </time>
+          </article>
+        `
+          )
+          .join('')}
+      </div>
+    `
+  }
+
+  let debounceTimer: ReturnType<typeof setTimeout>
+  input.addEventListener('input', () => {
+    clearTimeout(debounceTimer)
+    debounceTimer = setTimeout(() => renderResults(input.value), 200)
+  })
+
+  input.focus()
+</script>
+
+<style>
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+</style>

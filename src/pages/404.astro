@@ -1,0 +1,30 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro'
+import Header from '../components/Header.astro'
+import Footer from '../components/Footer.astro'
+---
+
+<BaseLayout
+  title="页面未找到"
+  description="您访问的页面不存在"
+>
+  <Header slot="header" />
+  <Footer slot="footer" />
+
+  <div class="container-main py-24 text-center animate-fade-in">
+    <h1 class="text-6xl sm:text-8xl font-bold bg-gradient-to-r from-primary-600 to-accent-600 bg-clip-text text-transparent mb-4">
+      404
+    </h1>
+    <p class="text-xl text-gray-500 dark:text-gray-400 mb-8">
+      抱歉，您访问的页面不存在
+    </p>
+    <div class="flex justify-center gap-4">
+      <a href="/" class="btn-primary">
+        返回首页
+      </a>
+      <a href="/search" class="btn-secondary">
+        搜索文章
+      </a>
+    </div>
+  </div>
+</BaseLayout>

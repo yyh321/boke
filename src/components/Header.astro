@@ -1,0 +1,50 @@
+---
+const currentPath = Astro.url.pathname
+
+const navLinks = [
+  { href: '/', label: '首页' },
+  { href: '/categories', label: '分类' },
+  { href: '/tags', label: '标签' },
+  { href: '/search', label: '搜索' },
+  { href: '/about', label: '关于' },
+]
+---
+
+<header class="sticky top-0 z-50 bg-white/80 dark:bg-gray-950/80 backdrop-blur-md border-b border-gray-100 dark:border-gray-800">
+  <nav class="container-main flex items-center justify-between h-16" aria-label="主导航">
+    <a
+      href="/"
+      class="text-xl font-bold bg-gradient-to-r from-primary-600 to-accent-600 bg-clip-text text-transparent hover:opacity-80 transition-opacity"
+      aria-label="回到首页"
+    >
+      个人博客
+    </a>
+
+    <ul class="flex items-center gap-1" role="list">
+      {navLinks.map((link) => {
+        const isActive =
+          link.href === '/'
+            ? currentPath === '/'
+            : currentPath.startsWith(link.href)
+
+        return (
+          <li>
+            <a
+              href={link.href}
+              class={`
+                px-3 py-2 rounded-lg text-sm font-medium transition-colors
+                ${isActive
+                  ? 'text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-950'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-900'
+                }
+              `}
+              aria-current={isActive ? 'page' : undefined}
+            >
+              {link.label}
+            </a>
+          </li>
+        )
+      })}
+    </ul>
+  </nav>
+</header>

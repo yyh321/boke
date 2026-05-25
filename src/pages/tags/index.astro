@@ -1,0 +1,43 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro'
+import Header from '../../components/Header.astro'
+import Footer from '../../components/Footer.astro'
+import { getCollection } from 'astro:content'
+import { getAllTags, getPostsByTag, getSortedPosts } from '../../lib/utils'
+
+const allPosts = await getCollection('blog')
+const sortedPosts = getSortedPosts(allPosts)
+const tags = getAllTags(allPosts)
+---
+
+<BaseLayout
+  title="文章标签"
+  description="按标签浏览博客文章"
+>
+  <Header slot="header" />
+  <Footer slot="footer" />
+
+  <div class="container-main py-16 animate-fade-in">
+    <h1 class="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-8">
+      文章标签
+    </h1>
+
+    <div class="flex flex-wrap gap-3 mb-12">
+      {tags.map((tag) => {
+        const count = getPostsByTag(sortedPosts, tag).length
+        const sizeClass =
+          count > 3 ? 'text-base' : count > 1 ? 'text-sm' : 'text-xs'
+
+        return (
+          <a
+            href={`/tags/${tag}`}
+            class={`tag ${sizeClass} hover:bg-primary-100 dark:hover:bg-primary-900 transition-all`}
+          >
+            {tag}
+            <span class="ml-1.5 opacity-60">({count})</span>
+          </a>
+        )
+      })}
+    </div>
+  </div>
+</BaseLayout>

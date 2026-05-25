@@ -1,0 +1,10 @@
+---
+export const prerender = false
+
+import AdminLayout from '../../../layouts/AdminLayout.astro'
+---
+
+<AdminLayout title="写新文章">
+  <meta http-equiv="refresh" content="0;url=/admin/posts/edit/new" />
+  <p class="text-center text-gray-500 py-16">正在跳转到编辑器...</p>
+</AdminLayout>
