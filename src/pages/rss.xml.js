@@ -8,8 +8,8 @@ export async function GET(context) {
     .sort((a, b) => new Date(b.data.pubDate).getTime() - new Date(a.data.pubDate).getTime())
 
   return rss({
-    title: '个人博客',
-    description: '分享技术思考与生活感悟',
+    title: '于云浩技术博客',
+    description: '于云浩的技术分享与成长记录',
     site: context.site,
     items: sortedPosts.map((post) => ({
       title: post.data.title,
