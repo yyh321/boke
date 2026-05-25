@@ -15,7 +15,7 @@ export default defineConfig({
     }),
     tailwind(),
   ],
-  output: 'static',
+  output: 'server',
   adapter: vercel({
     imageService: true,
     webAnalytics: { enabled: true },
