@@ -1,8 +1,9 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import os from 'node:os'
 import type { CommentData } from './types'
 
-const DATA_DIR = path.join(process.cwd(), '.data')
+const DATA_DIR = path.join(os.tmpdir(), 'boke-data')
 const COMMENTS_FILE = path.join(DATA_DIR, 'comments.json')
 
 function ensureDir(): void {

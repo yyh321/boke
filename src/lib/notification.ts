@@ -73,7 +73,8 @@ function logNotification(
   try {
     const fs = require('node:fs')
     const path = require('node:path')
-    const logDir = path.join(process.cwd(), '.data')
+    const os = require('node:os')
+    const logDir = path.join(os.tmpdir(), 'boke-data')
     const logFile = path.join(logDir, 'notifications.log')
 
     if (!fs.existsSync(logDir)) {
