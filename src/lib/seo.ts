@@ -1,13 +1,24 @@
 export function generateSlug(title: string): string {
   const slug = title
     .toLowerCase()
-    .replace(/[^\w\u4e00-\u9fff\s-]/g, '')
+    .replace(/[^\w\s-]/g, '')
     .replace(/\s+/g, '-')
     .replace(/-+/g, '-')
     .replace(/^-+|-+$/g, '')
+    .substring(0, 80) || 'post'
 
   const timestamp = Date.now().toString(36)
   return `${slug}-${timestamp}`
+}
+
+export function cleanSlug(raw: string): string {
+  return raw
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .substring(0, 100) || 'post'
 }
 
 export function generateSeoTitle(title: string, siteName: string = '个人博客'): string {

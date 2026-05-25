@@ -1,21 +1,63 @@
 ---
-export const prerender = true
+export const prerender = false
 
 import { getCollection } from 'astro:content'
 import BlogLayout from '../../layouts/BlogLayout.astro'
+import { getPublishedPosts, getPostBySlug } from '../../lib/db/posts'
+import { cleanSlug } from '../../lib/seo'
+import type { PostData } from '../../lib/db/types'
 
-export async function getStaticPaths() {
-  const posts = await getCollection('blog')
-  return posts.map((post) => ({
-    params: { slug: post.slug },
-    props: { post },
-  }))
+const { slug: rawSlug } = Astro.params
+const slug = rawSlug ? decodeURIComponent(rawSlug) : ''
+const clean = cleanSlug(slug)
+
+let post: any = null
+let dbPost: PostData | null = null
+
+const contentPosts = await getCollection('blog')
+const contentPost = contentPosts.find((p) => p.slug === slug || p.slug === clean)
+
+if (contentPost && !contentPost.data.draft) {
+  post = contentPost
+} else {
+  dbPost = getPostBySlug(slug) || getPostBySlug(clean)
 }
-
-const { post } = Astro.props
-const { Content } = await post.render()
 ---
 
-<BlogLayout post={post}>
-  <Content />
-</BlogLayout>
+{post ? (
+  (await (async () => {
+    const { Content } = await post.render()
+    return (
+      <BlogLayout post={post}>
+        <Content />
+      </BlogLayout>
+    )
+  })())
+) : dbPost ? (
+  <BlogLayout post={null} dbPost={dbPost}>
+    <Fragment set:html={(() => {
+      let html = dbPost.content
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+      html = html
+        .replace(/^### (.+)$/gm, '<h3 id="$1">$1</h3>')
+        .replace(/^## (.+)$/gm, '<h2 id="$1">$1</h2>')
+        .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+        .replace(/```(\w*)\n([\s\S]*?)```/gm, '<pre><code>$2</code></pre>')
+        .replace(/`([^`]+)`/g, '<code>$1</code>')
+        .replace(/^> (.+)$/gm, '<blockquote><p>$1</p></blockquote>')
+        .replace(/^- (.+)$/gm, '<li>$1</li>')
+        .replace(/^\d+\. (.+)$/gm, '<li>$1</li>')
+        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+        .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" />')
+        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')
+        .replace(/\n\n/g, '</p><p>')
+        .replace(/\n/g, '<br/>')
+      return `<p>${html}</p>`
+    })()} />
+  </BlogLayout>
+) : (
+  <p class="text-center py-16 text-gray-400">文章不存在</p>
+)}

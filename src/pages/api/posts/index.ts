@@ -4,7 +4,7 @@ import type { APIRoute } from 'astro'
 import { getCollection } from 'astro:content'
 import { getAllPosts, getPostById, createPost, updatePost, deletePost } from '../../../lib/db/posts'
 import { validatePostTitle, validatePostContent, sanitizeHtml } from '../../../lib/validation'
-import { generateSlug, generateSeoTitle, generateSeoDescription, calculateReadingTime } from '../../../lib/seo'
+import { generateSlug, generateSeoTitle, generateSeoDescription, calculateReadingTime, cleanSlug } from '../../../lib/seo'
 import type { PostData, ApiResponse } from '../../../lib/db/types'
 
 export const GET: APIRoute = async ({ url }) => {
@@ -81,7 +81,7 @@ export const POST: APIRoute = async ({ request }) => {
   }
 
   const now = new Date().toISOString()
-  const slug = body.slug || generateSlug(body.title || '')
+  const slug = cleanSlug(body.slug || generateSlug(body.title || ''))
   const sanitizedContent = sanitizeHtml(body.content || '')
 
   const post: PostData = {
@@ -139,6 +139,13 @@ export const PUT: APIRoute = async ({ request }) => {
 
   if (updates.content) {
     updates.readingTime = calculateReadingTime(updates.content)
+  }
+
+  if (updates.slug) {
+    updates.slug = cleanSlug(updates.slug)
+  }
+  if (updates.title && !updates.slug) {
+    updates.slug = cleanSlug(generateSlug(updates.title))
   }
 
   const updated = updatePost(id, updates)

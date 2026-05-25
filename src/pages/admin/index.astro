@@ -60,4 +60,43 @@ const commentStats = getCommentStats()
       </p>
     </a>
   </div>
+
+  <div class="mt-8 bg-white rounded-2xl border border-gray-200 p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-lg font-semibold text-gray-900">数据状态</h2>
+    </div>
+    <div id="db-status" class="space-y-3">
+      <div class="flex items-center gap-2 text-sm text-gray-500">
+        <div class="inline-block w-4 h-4 border-2 border-gray-300 border-t-primary-500 rounded-full animate-spin" />
+        检测数据状态...
+      </div>
+    </div>
+  </div>
 </AdminLayout>
+
+<script>
+  async function checkDbStatus() {
+    const el = document.getElementById('db-status')
+    try {
+      const res = await fetch('/api/posts?filter=published')
+      const data = await res.json()
+      const count = data.data ? data.data.length : 0
+      el.innerHTML = `
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm text-gray-700">数据库文章数: <strong>${count}</strong></p>
+            <p class="text-xs text-gray-400 mt-1">
+              ${count === 0
+                ? '⚠️ 暂无数据，请先发布文章。如果是重新部署后数据丢失，只需重新发布即可。'
+                : '✅ 数据正常'}
+            </p>
+          </div>
+          ${count === 0 ? '<p class="text-xs text-orange-500">需要重新发布文章</p>' : ''}
+        </div>
+      `
+    } catch {
+      el.innerHTML = '<p class="text-sm text-red-500">❌ 数据库连接失败</p>'
+    }
+  }
+  checkDbStatus()
+</script>
