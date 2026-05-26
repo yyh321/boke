@@ -10,6 +10,20 @@ const commentStats = await getCommentStatsAsync()
 ---
 
 <AdminLayout title="仪表盘">
+  <div id="redis-warning" class="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl hidden">
+    <div class="flex items-start gap-3">
+      <span class="text-amber-500 text-xl">⚠️</span>
+      <div>
+        <p class="text-amber-800 font-semibold text-sm">Redis 存储未配置 - 文章数据可能丢失！</p>
+        <p class="text-amber-600 text-sm mt-1">
+          请在 Vercel 中配置 KV 存储。打开
+          <a href="https://vercel.com/dashboard/stores" target="_blank" class="text-primary-600 underline font-medium">Vercel Storage</a>，
+          创建 Redis 数据库后重新部署。
+        </p>
+      </div>
+    </div>
+  </div>
+
   <div class="flex items-center justify-between mb-8">
     <h1 class="text-2xl font-bold text-gray-900">仪表盘</h1>
   </div>
@@ -87,16 +101,29 @@ const commentStats = await getCommentStatsAsync()
             <p class="text-sm text-gray-700">数据库文章数: <strong>${count}</strong></p>
             <p class="text-xs text-gray-400 mt-1">
               ${count === 0
-                ? '⚠️ 暂无数据，请先发布文章。如果是重新部署后数据丢失，只需重新发布即可。'
-                : '✅ 数据正常'}
+                ? '暂无数据，请先发布文章'
+                : '数据正常'}
             </p>
           </div>
-          ${count === 0 ? '<p class="text-xs text-orange-500">需要重新发布文章</p>' : ''}
         </div>
       `
     } catch {
-      el.innerHTML = '<p class="text-sm text-red-500">❌ 数据库连接失败</p>'
+      el.innerHTML = '<p class="text-sm text-red-500">连接失败</p>'
     }
   }
+
+  async function checkRedis() {
+    try {
+      const res = await fetch('/api/db-status')
+      const data = await res.json()
+      if (!data.data.hasRedis) {
+        document.getElementById('redis-warning')?.classList.remove('hidden')
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  checkRedis()
   checkDbStatus()
 </script>
