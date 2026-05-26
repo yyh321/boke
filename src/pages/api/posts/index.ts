@@ -2,7 +2,7 @@ export const prerender = false
 
 import type { APIRoute } from 'astro'
 import { getCollection } from 'astro:content'
-import { getAllPostsAsync, getPostByIdAsync, createPostAsync, updatePostAsync, deletePostAsync } from '../../../lib/db/posts'
+import { getAllPostsAsync, getPostByIdAsync, createPostAsync, updatePostAsync, deletePostAsync, ensureSeeded } from '../../../lib/db/posts'
 import { validatePostTitle, validatePostContent, sanitizeHtml } from '../../../lib/validation'
 import { generateSlug, generateSeoTitle, generateSeoDescription, calculateReadingTime, cleanSlug } from '../../../lib/seo'
 import type { PostData, ApiResponse } from '../../../lib/db/types'
@@ -11,21 +11,8 @@ export const GET: APIRoute = async ({ url }) => {
   const id = url.searchParams.get('id')
   const filter = url.searchParams.get('filter')
 
-  if (id) {
-    const post = await getPostByIdAsync(id)
-    if (!post) {
-      return new Response(JSON.stringify({ success: false, error: '文章不存在' }), { status: 404 })
-    }
-    return new Response(JSON.stringify({ success: true, data: post }))
-  }
-
-  let posts = await getAllPostsAsync()
-  if (filter === 'published') {
-    posts = posts.filter((p) => p.status === 'published')
-  }
-
   const contentPosts = await getCollection('blog')
-  const publishedContentPosts = contentPosts
+  const seedPosts = contentPosts
     .filter((p) => !p.data.draft)
     .map((p) => ({
       id: p.slug,
@@ -48,7 +35,22 @@ export const GET: APIRoute = async ({ url }) => {
       commentCount: 0,
     }))
 
-  const allPosts = [...posts, ...publishedContentPosts]
+  await ensureSeeded(seedPosts)
+
+  if (id) {
+    const post = await getPostByIdAsync(id)
+    if (!post) {
+      return new Response(JSON.stringify({ success: false, error: '文章不存在' }), { status: 404 })
+    }
+    return new Response(JSON.stringify({ success: true, data: post }))
+  }
+
+  let posts = await getAllPostsAsync()
+  if (filter === 'published') {
+    posts = posts.filter((p) => p.status === 'published')
+  }
+
+  const allPosts = [...posts, ...seedPosts]
   const seen = new Set<string>()
   const merged = allPosts.filter((p) => {
     if (seen.has(p.slug)) return false
@@ -66,18 +68,12 @@ export const POST: APIRoute = async ({ request }) => {
 
   const titleValidation = validatePostTitle(body.title || '')
   if (!titleValidation.valid) {
-    return new Response(JSON.stringify({
-      success: false,
-      error: titleValidation.errors.join('; '),
-    } satisfies ApiResponse), { status: 400 })
+    return new Response(JSON.stringify({ success: false, error: titleValidation.errors.join('; ') }), { status: 400 })
   }
 
   const contentValidation = validatePostContent(body.content || '')
   if (!contentValidation.valid) {
-    return new Response(JSON.stringify({
-      success: false,
-      error: contentValidation.errors.join('; '),
-    } satisfies ApiResponse), { status: 400 })
+    return new Response(JSON.stringify({ success: false, error: contentValidation.errors.join('; ') }), { status: 400 })
   }
 
   const now = new Date().toISOString()
@@ -112,57 +108,37 @@ export const POST: APIRoute = async ({ request }) => {
 export const PUT: APIRoute = async ({ request }) => {
   const body = await request.json() as Partial<PostData>
   const { id, ...updates } = body
-
   if (!id) {
     return new Response(JSON.stringify({ success: false, error: '缺少文章 ID' } satisfies ApiResponse), { status: 400 })
   }
-
   const existing = await getPostByIdAsync(id)
   if (!existing) {
     return new Response(JSON.stringify({ success: false, error: '文章不存在' } satisfies ApiResponse), { status: 404 })
   }
-
   if (updates.title) {
-    const titleValidation = validatePostTitle(updates.title)
-    if (!titleValidation.valid) {
-      return new Response(JSON.stringify({ success: false, error: titleValidation.errors.join('; ') }), { status: 400 })
-    }
+    const r = validatePostTitle(updates.title)
+    if (!r.valid) return new Response(JSON.stringify({ success: false, error: r.errors.join('; ') }), { status: 400 })
   }
-
   if (updates.content) {
-    const contentValidation = validatePostContent(updates.content)
-    if (!contentValidation.valid) {
-      return new Response(JSON.stringify({ success: false, error: contentValidation.errors.join('; ') }), { status: 400 })
-    }
+    const r = validatePostContent(updates.content)
+    if (!r.valid) return new Response(JSON.stringify({ success: false, error: r.errors.join('; ') }), { status: 400 })
     updates.content = sanitizeHtml(updates.content)
-  }
-
-  if (updates.content) {
     updates.readingTime = calculateReadingTime(updates.content)
   }
-
-  if (updates.slug) {
-    updates.slug = cleanSlug(updates.slug)
-  }
-  if (updates.title && !updates.slug) {
-    updates.slug = cleanSlug(generateSlug(updates.title))
-  }
-
+  if (updates.slug) updates.slug = cleanSlug(updates.slug)
+  if (updates.title && !updates.slug) updates.slug = cleanSlug(generateSlug(updates.title))
   const updated = await updatePostAsync(id, updates)
   return new Response(JSON.stringify({ success: true, data: updated } satisfies ApiResponse))
 }
 
 export const DELETE: APIRoute = async ({ request }) => {
   const body = await request.json() as { id: string }
-
   if (!body.id) {
     return new Response(JSON.stringify({ success: false, error: '缺少文章 ID' } satisfies ApiResponse), { status: 400 })
   }
-
   const deleted = await deletePostAsync(body.id)
   if (!deleted) {
     return new Response(JSON.stringify({ success: false, error: '文章不存在' } satisfies ApiResponse), { status: 404 })
   }
-
   return new Response(JSON.stringify({ success: true, message: '删除成功' } satisfies ApiResponse))
 }

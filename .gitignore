@@ -6,6 +6,4 @@ dist/
 *.log
 .cache
 astro/.astro
-.data/
 uploads/
-node_modules
