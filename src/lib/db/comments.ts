@@ -13,10 +13,17 @@ async function initRedis(): Promise<any> {
   redisInitPromise = (async () => {
     try {
       const { Redis } = await import('@upstash/redis')
-      const url = import.meta.env.KV_URL || import.meta.env.REDIS_URL
-      const token = import.meta.env.KV_REST_API_TOKEN || import.meta.env.REDIS_TOKEN
+      const url = import.meta.env.KV_URL
+        || import.meta.env.KV_REST_API_URL
+        || import.meta.env.UPSTASH_REDIS_REST_URL
+        || import.meta.env.REDIS_URL
+      const token = import.meta.env.KV_REST_API_TOKEN
+        || import.meta.env.KV_REST_API_READ_ONLY_TOKEN
+        || import.meta.env.UPSTASH_REDIS_REST_TOKEN
+        || import.meta.env.REDIS_TOKEN
       if (url && token) {
         redisClient = new Redis({ url, token })
+        console.log('[DB] ✅ Redis connected for comments')
       }
     } catch {
       // Redis not available

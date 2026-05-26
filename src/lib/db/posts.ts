@@ -16,13 +16,22 @@ async function getRedis(): Promise<any> {
   _redisInit = (async () => {
     try {
       const { Redis } = await import('@upstash/redis')
-      const url = import.meta.env.KV_URL || import.meta.env.REDIS_URL
-      const token = import.meta.env.KV_REST_API_TOKEN || import.meta.env.REDIS_TOKEN
+      const url = import.meta.env.KV_URL
+        || import.meta.env.KV_REST_API_URL
+        || import.meta.env.UPSTASH_REDIS_REST_URL
+        || import.meta.env.REDIS_URL
+      const token = import.meta.env.KV_REST_API_TOKEN
+        || import.meta.env.KV_REST_API_READ_ONLY_TOKEN
+        || import.meta.env.UPSTASH_REDIS_REST_TOKEN
+        || import.meta.env.REDIS_TOKEN
       if (url && token) {
         _redis = new Redis({ url, token })
+        console.log('[DB] ✅ Redis connected, data will persist')
+      } else {
+        console.log('[DB] ⚠️ No Redis env vars found, using /tmp storage')
       }
-    } catch {
-      // Redis not available
+    } catch (e) {
+      console.log('[DB] ⚠️ Redis init error:', e)
     }
     return _redis
   })()
