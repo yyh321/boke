@@ -6,38 +6,37 @@ const POSTS_FILE = 'posts.json'
 let memCache: PostData[] | null = null
 
 let _redis: any = null
-let _redisErr: string | null = null
 
 function getEnv(key: string): string | undefined {
-  try {
-    return (import.meta as any).env?.[key] || (process.env as any)?.[key]
-  } catch {
-    return undefined
-  }
+  return (process as any).env?.[key]
 }
 
 async function getRedis(): Promise<any> {
-  if (_redis) return _redis
+  if (_redis !== null) return _redis || undefined
   try {
     const { Redis } = await import('@upstash/redis')
     const url = getEnv('KV_URL') || getEnv('KV_REST_API_URL')
       || getEnv('UPSTASH_REDIS_REST_URL') || getEnv('REDIS_URL')
-    const token = getEnv('KV_REST_API_TOKEN') || getEnv('KV_REST_API_READ_ONLY_TOKEN')
-      || getEnv('UPSTASH_REDIS_REST_TOKEN') || getEnv('REDIS_TOKEN')
+
+    // IMPORTANT: prefer KV_REST_API_TOKEN over READ_ONLY (read-only can't write!)
+    const token = getEnv('KV_REST_API_TOKEN')
+      || getEnv('KV_REST_API_READ_ONLY_TOKEN')
+      || getEnv('UPSTASH_REDIS_REST_TOKEN')
+      || getEnv('REDIS_TOKEN')
+
     if (url && token) {
       _redis = new Redis({ url, token })
       const pong = await _redis.ping()
-      if (pong === 'PONG') {
-        console.log('[DB] ✅ Redis connected OK')
-      }
+      console.log(`[DB] Redis ping: ${pong}`)
     } else {
-      _redisErr = 'no env vars'
+      _redis = false // mark as tried-but-failed
+      console.log('[DB] No Redis env vars:', { url: !!url, token: !!token })
     }
   } catch (e: any) {
-    _redisErr = e.message || 'unknown'
-    console.error('[DB] Redis init failed:', _redisErr)
+    _redis = false
+    console.error('[DB] Redis init error:', e.message)
   }
-  return _redis
+  return _redis || undefined
 }
 
 const KV_KEY = 'boke:posts'

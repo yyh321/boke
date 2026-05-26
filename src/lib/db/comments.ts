@@ -7,15 +7,11 @@ let _redis: any = null
 let cache: CommentData[] | null = null
 
 function getEnv(key: string): string | undefined {
-  try {
-    return (import.meta as any).env?.[key] || (process.env as any)?.[key]
-  } catch {
-    return undefined
-  }
+  return (process as any).env?.[key]
 }
 
 async function getRedis(): Promise<any> {
-  if (_redis) return _redis
+  if (_redis !== null) return _redis || undefined
   try {
     const { Redis } = await import('@upstash/redis')
     const url = getEnv('KV_URL') || getEnv('KV_REST_API_URL')
@@ -24,11 +20,13 @@ async function getRedis(): Promise<any> {
       || getEnv('UPSTASH_REDIS_REST_TOKEN') || getEnv('REDIS_TOKEN')
     if (url && token) {
       _redis = new Redis({ url, token })
+    } else {
+      _redis = false
     }
   } catch {
-    // Redis not available
+    _redis = false
   }
-  return _redis
+  return _redis || undefined
 }
 
 const KV_KEY = 'boke:comments'
