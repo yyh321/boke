@@ -1,15 +1,54 @@
 ---
-export const prerender = true
+export const prerender = false
 
 import BaseLayout from '../../layouts/BaseLayout.astro'
 import Header from '../../components/Header.astro'
 import Footer from '../../components/Footer.astro'
 import { getCollection } from 'astro:content'
-import { getAllTags, getPostsByTag, getSortedPosts } from '../../lib/utils'
+import { getPublishedPostsAsync } from '../../lib/db/posts'
 
-const allPosts = await getCollection('blog')
-const sortedPosts = getSortedPosts(allPosts)
-const tags = getAllTags(allPosts)
+const [contentPosts, dbPosts] = await Promise.all([
+  getCollection('blog'),
+  getPublishedPostsAsync(),
+])
+
+const contentArticles = contentPosts
+  .filter((p) => !p.data.draft)
+  .map((p) => ({
+    slug: p.slug,
+    title: p.data.title,
+    description: p.data.description,
+    pubDate: p.data.pubDate,
+    category: p.data.category,
+    tags: p.data.tags,
+    readingTime: p.data.readingTime,
+  }))
+
+const dbArticles = dbPosts.map((p) => ({
+  slug: p.slug,
+  title: p.title,
+  description: p.description,
+  pubDate: new Date(p.publishDate),
+  category: p.category,
+  tags: p.tags,
+  readingTime: p.readingTime,
+}))
+
+const seen = new Set<string>()
+const allArticles = [...dbArticles, ...contentArticles].filter((a) => {
+  if (seen.has(a.slug)) return false
+  seen.add(a.slug)
+  return true
+})
+
+const tagCounts = new Map<string, number>()
+for (const a of allArticles) {
+  for (const tag of a.tags) {
+    tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1)
+  }
+}
+
+const tags = [...tagCounts.keys()].sort()
 ---
 
 <BaseLayout
@@ -26,10 +65,8 @@ const tags = getAllTags(allPosts)
 
     <div class="flex flex-wrap gap-3 mb-12">
       {tags.map((tag) => {
-        const count = getPostsByTag(sortedPosts, tag).length
-        const sizeClass =
-          count > 3 ? 'text-base' : count > 1 ? 'text-sm' : 'text-xs'
-
+        const count = tagCounts.get(tag) || 0
+        const sizeClass = count > 3 ? 'text-base' : count > 1 ? 'text-sm' : 'text-xs'
         return (
           <a
             href={`/tags/${tag}`}

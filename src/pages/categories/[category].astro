@@ -1,26 +1,52 @@
 ---
-export const prerender = true
+export const prerender = false
 
 import BaseLayout from '../../layouts/BaseLayout.astro'
 import Header from '../../components/Header.astro'
 import Footer from '../../components/Footer.astro'
 import ArticleCard from '../../components/ArticleCard.astro'
 import { getCollection } from 'astro:content'
-import { getSortedPosts, getPostsByCategory, getAllCategories } from '../../lib/utils'
+import { getPublishedPostsAsync } from '../../lib/db/posts'
 
-export async function getStaticPaths() {
-  const posts = await getCollection('blog')
-  const categories = getAllCategories(posts)
+const { category } = Astro.params
 
-  return categories.map((category) => ({
-    params: { category },
-    props: { category, allPosts: posts },
+const [contentPosts, dbPosts] = await Promise.all([
+  getCollection('blog'),
+  getPublishedPostsAsync(),
+])
+
+const contentArticles = contentPosts
+  .filter((p) => !p.data.draft)
+  .map((p) => ({
+    slug: p.slug,
+    title: p.data.title,
+    description: p.data.description,
+    pubDate: p.data.pubDate,
+    category: p.data.category,
+    tags: p.data.tags,
+    readingTime: p.data.readingTime,
   }))
-}
 
-const { category, allPosts } = Astro.props
-const sortedPosts = getSortedPosts(allPosts)
-const categoryPosts = getPostsByCategory(sortedPosts, category)
+const dbArticles = dbPosts.map((p) => ({
+  slug: p.slug,
+  title: p.title,
+  description: p.description,
+  pubDate: new Date(p.publishDate),
+  category: p.category,
+  tags: p.tags,
+  readingTime: p.readingTime,
+}))
+
+const seen = new Set<string>()
+const allArticles = [...dbArticles, ...contentArticles].filter((a) => {
+  if (seen.has(a.slug)) return false
+  seen.add(a.slug)
+  return true
+})
+
+const filtered = allArticles
+  .filter((a) => a.category === category)
+  .sort((a, b) => b.pubDate.getTime() - a.pubDate.getTime())
 ---
 
 <BaseLayout
@@ -43,11 +69,11 @@ const categoryPosts = getPostsByCategory(sortedPosts, category)
       {category}
     </h1>
     <p class="text-gray-500 dark:text-gray-400 mb-8">
-      共 {categoryPosts.length} 篇文章
+      共 {filtered.length} 篇文章
     </p>
 
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {categoryPosts.map((post) => (
+      {filtered.map((post) => (
         <ArticleCard post={post} />
       ))}
     </div>
