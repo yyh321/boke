@@ -14,10 +14,13 @@ async function getRedis(): Promise<any> {
   if (_redis !== null) return _redis || undefined
   try {
     const { Redis } = await import('@upstash/redis')
-    const url = getEnv('KV_URL') || getEnv('KV_REST_API_URL')
-      || getEnv('UPSTASH_REDIS_REST_URL') || getEnv('REDIS_URL')
-    const token = getEnv('KV_REST_API_TOKEN') || getEnv('KV_REST_API_READ_ONLY_TOKEN')
-      || getEnv('UPSTASH_REDIS_REST_TOKEN') || getEnv('REDIS_TOKEN')
+    const url = getEnv('KV_REST_API_URL')
+      || getEnv('UPSTASH_REDIS_REST_URL')
+      || getEnv('KV_URL')
+      || getEnv('REDIS_URL')
+    const token = getEnv('KV_REST_API_TOKEN')
+      || getEnv('UPSTASH_REDIS_REST_TOKEN')
+      || getEnv('REDIS_TOKEN')
     if (url && token) {
       _redis = new Redis({ url, token })
     } else {

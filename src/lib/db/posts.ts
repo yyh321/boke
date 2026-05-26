@@ -15,12 +15,13 @@ async function getRedis(): Promise<any> {
   if (_redis !== null) return _redis || undefined
   try {
     const { Redis } = await import('@upstash/redis')
-    const url = getEnv('KV_URL') || getEnv('KV_REST_API_URL')
-      || getEnv('UPSTASH_REDIS_REST_URL') || getEnv('REDIS_URL')
+    // Prefer REST API URL (https://) over direct rediss:// for serverless
+    const url = getEnv('KV_REST_API_URL')
+      || getEnv('UPSTASH_REDIS_REST_URL')
+      || getEnv('KV_URL')
+      || getEnv('REDIS_URL')
 
-    // IMPORTANT: prefer KV_REST_API_TOKEN over READ_ONLY (read-only can't write!)
     const token = getEnv('KV_REST_API_TOKEN')
-      || getEnv('KV_REST_API_READ_ONLY_TOKEN')
       || getEnv('UPSTASH_REDIS_REST_TOKEN')
       || getEnv('REDIS_TOKEN')
 
@@ -29,7 +30,7 @@ async function getRedis(): Promise<any> {
       const pong = await _redis.ping()
       console.log(`[DB] Redis ping: ${pong}`)
     } else {
-      _redis = false // mark as tried-but-failed
+      _redis = false
       console.log('[DB] No Redis env vars:', { url: !!url, token: !!token })
     }
   } catch (e: any) {
