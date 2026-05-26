@@ -1,17 +1,55 @@
 ---
-export const prerender = true
+export const prerender = false
 
 import BaseLayout from '../layouts/BaseLayout.astro'
 import Header from '../components/Header.astro'
 import Footer from '../components/Footer.astro'
 import ArticleCard from '../components/ArticleCard.astro'
 import { getCollection } from 'astro:content'
-import { getSortedPosts, formatDate } from '../lib/utils'
+import { getPublishedPostsAsync } from '../lib/db/posts'
+import { formatDate } from '../lib/utils'
+import type { PostData } from '../lib/db/types'
 
-const allPosts = await getCollection('blog')
-const sortedPosts = getSortedPosts(allPosts)
-const featuredPosts = sortedPosts.filter((p) => p.data.featured).slice(0, 3)
-const recentPosts = sortedPosts.slice(0, 6)
+const [contentPosts, dbPosts] = await Promise.all([
+  getCollection('blog'),
+  getPublishedPostsAsync(),
+])
+
+const contentArticles = contentPosts
+  .filter((p) => !p.data.draft)
+  .map((p) => ({
+    slug: p.slug,
+    title: p.data.title,
+    description: p.data.description,
+    pubDate: p.data.pubDate,
+    category: p.data.category,
+    tags: p.data.tags,
+    featured: p.data.featured,
+    readingTime: p.data.readingTime,
+  }))
+
+const dbArticles = dbPosts.map((p) => ({
+  slug: p.slug,
+  title: p.title,
+  description: p.description,
+  pubDate: new Date(p.publishDate),
+  category: p.category,
+  tags: p.tags,
+  featured: false,
+  readingTime: p.readingTime,
+}))
+
+const seen = new Set<string>()
+const allArticles = [...dbArticles, ...contentArticles].filter((a) => {
+  if (seen.has(a.slug)) return false
+  seen.add(a.slug)
+  return true
+})
+
+allArticles.sort((a, b) => b.pubDate.getTime() - a.pubDate.getTime())
+
+const featuredPosts = allArticles.filter((a) => a.featured).slice(0, 3)
+const recentPosts = allArticles.slice(0, 6)
 ---
 
 <BaseLayout
@@ -46,8 +84,8 @@ const recentPosts = sortedPosts.slice(0, 6)
           精选文章
         </h2>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {featuredPosts.map((post) => (
-            <ArticleCard post={post} />
+          {featuredPosts.map((article) => (
+            <ArticleCard post={article} />
           ))}
         </div>
       </section>
@@ -59,12 +97,12 @@ const recentPosts = sortedPosts.slice(0, 6)
         最新文章
       </h2>
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {recentPosts.map((post) => (
-          <ArticleCard post={post} />
+        {recentPosts.map((article) => (
+          <ArticleCard post={article} />
         ))}
       </div>
 
-      {sortedPosts.length > 6 && (
+      {allArticles.length > 6 && (
         <div class="text-center mt-8">
           <a href="/categories" class="btn-secondary">
             查看所有文章
@@ -74,7 +112,7 @@ const recentPosts = sortedPosts.slice(0, 6)
     </section>
   </section>
 
-  {sortedPosts.length === 0 && (
+  {allArticles.length === 0 && (
     <section class="container-main py-24 text-center">
       <p class="text-gray-400 dark:text-gray-500 text-lg">暂无文章，敬请期待</p>
     </section>

@@ -1,24 +1,48 @@
 ---
-import type { CollectionEntry } from 'astro:content'
 import { formatDate } from '../lib/utils'
 
+interface Article {
+  slug: string
+  title?: string
+  description?: string
+  pubDate?: Date
+  category?: string
+  tags?: string[]
+  readingTime?: number
+  data?: {
+    title: string
+    description: string
+    pubDate: Date
+    category: string
+    tags: string[]
+    readingTime?: number
+  }
+}
+
 interface Props {
-  post: CollectionEntry<'blog'>
+  post: Article
 }
 
 const { post } = Astro.props
-const { data, slug } = post
+
+const slug = post.slug
+const title = post.title || post.data?.title || ''
+const description = post.description || post.data?.description || ''
+const pubDate = post.pubDate || post.data?.pubDate || new Date()
+const category = post.category || post.data?.category || ''
+const tags = post.tags || post.data?.tags || []
+const readingTime = post.readingTime || post.data?.readingTime
 ---
 
 <article class="card p-6 group animate-fade-in">
   <div class="flex flex-wrap items-center gap-2 mb-3">
     <a
-      href={`/categories/${data.category}`}
+      href={`/categories/${category}`}
       class="tag text-xs"
     >
-      {data.category}
+      {category}
     </a>
-    {data.tags.slice(0, 2).map((tag) => (
+    {tags.slice(0, 2).map((tag) => (
       <a
         href={`/tags/${tag}`}
         class="text-xs text-gray-400 dark:text-gray-500 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
@@ -33,27 +57,27 @@ const { data, slug } = post
       href={`/blog/${slug}`}
       class="text-xl font-semibold text-gray-900 dark:text-gray-100 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors"
     >
-      {data.title}
+      {title}
     </a>
   </h2>
 
   <p class="text-sm text-gray-500 dark:text-gray-400 mb-4 line-clamp-2">
-    {data.description}
+    {description}
   </p>
 
   <div class="flex items-center justify-between text-xs text-gray-400 dark:text-gray-500">
-    <time datetime={data.pubDate.toISOString()}>
-      {formatDate(data.pubDate)}
+    <time datetime={pubDate.toISOString()}>
+      {formatDate(pubDate)}
     </time>
-    {data.readingTime && (
-      <span>{data.readingTime} 分钟阅读</span>
+    {readingTime && (
+      <span>{readingTime} 分钟阅读</span>
     )}
   </div>
 
   <a
     href={`/blog/${slug}`}
     class="absolute inset-0"
-    aria-label={`阅读文章：${data.title}`}
+    aria-label={`阅读文章：${title}`}
   />
 </article>
 
