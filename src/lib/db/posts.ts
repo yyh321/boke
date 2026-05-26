@@ -3,39 +3,41 @@ import { readJsonFile, writeJsonFile } from './storage'
 
 const POSTS_FILE = 'posts.json'
 
-// In-memory cache to avoid repeated reads during a single request
 let memCache: PostData[] | null = null
 
-// Lazy Redis initialization
 let _redis: any = null
-let _redisInit: Promise<any> | null = null
+let _redisErr: string | null = null
+
+function getEnv(key: string): string | undefined {
+  try {
+    return (import.meta as any).env?.[key] || (process.env as any)?.[key]
+  } catch {
+    return undefined
+  }
+}
 
 async function getRedis(): Promise<any> {
   if (_redis) return _redis
-  if (_redisInit) return _redisInit
-  _redisInit = (async () => {
-    try {
-      const { Redis } = await import('@upstash/redis')
-      const url = import.meta.env.KV_URL
-        || import.meta.env.KV_REST_API_URL
-        || import.meta.env.UPSTASH_REDIS_REST_URL
-        || import.meta.env.REDIS_URL
-      const token = import.meta.env.KV_REST_API_TOKEN
-        || import.meta.env.KV_REST_API_READ_ONLY_TOKEN
-        || import.meta.env.UPSTASH_REDIS_REST_TOKEN
-        || import.meta.env.REDIS_TOKEN
-      if (url && token) {
-        _redis = new Redis({ url, token })
-        console.log('[DB] ✅ Redis connected, data will persist')
-      } else {
-        console.log('[DB] ⚠️ No Redis env vars found, using /tmp storage')
+  try {
+    const { Redis } = await import('@upstash/redis')
+    const url = getEnv('KV_URL') || getEnv('KV_REST_API_URL')
+      || getEnv('UPSTASH_REDIS_REST_URL') || getEnv('REDIS_URL')
+    const token = getEnv('KV_REST_API_TOKEN') || getEnv('KV_REST_API_READ_ONLY_TOKEN')
+      || getEnv('UPSTASH_REDIS_REST_TOKEN') || getEnv('REDIS_TOKEN')
+    if (url && token) {
+      _redis = new Redis({ url, token })
+      const pong = await _redis.ping()
+      if (pong === 'PONG') {
+        console.log('[DB] ✅ Redis connected OK')
       }
-    } catch (e) {
-      console.log('[DB] ⚠️ Redis init error:', e)
+    } else {
+      _redisErr = 'no env vars'
     }
-    return _redis
-  })()
-  return _redisInit
+  } catch (e: any) {
+    _redisErr = e.message || 'unknown'
+    console.error('[DB] Redis init failed:', _redisErr)
+  }
+  return _redis
 }
 
 const KV_KEY = 'boke:posts'
@@ -49,12 +51,16 @@ async function loadAll(): Promise<PostData[]> {
       const raw = await redis.get<string>(KV_KEY)
       if (raw) {
         memCache = JSON.parse(raw)
+        console.log(`[DB] Loaded ${memCache.length} posts from Redis`)
         return memCache
       }
-    } catch {}
+    } catch (e) {
+      console.error('[DB] Redis read error:', e)
+    }
   }
 
   memCache = readJsonFile<PostData[]>(POSTS_FILE, [])
+  console.log(`[DB] Loaded ${memCache.length} posts from file`)
   return memCache
 }
 
@@ -62,17 +68,21 @@ async function saveAll(posts: PostData[]): Promise<void> {
   memCache = posts
 
   const redis = await getRedis()
+  let redisOk = false
   if (redis) {
     try {
       await redis.set(KV_KEY, JSON.stringify(posts))
-      return
-    } catch {}
+      redisOk = true
+      console.log(`[DB] Saved ${posts.length} posts to Redis`)
+    } catch (e) {
+      console.error('[DB] Redis write error:', e)
+    }
   }
 
   writeJsonFile(POSTS_FILE, posts)
+  console.log(`[DB] Saved ${posts.length} posts to file (Redis: ${redisOk})`)
 }
 
-// Check if storage is empty and needs seeding
 export async function ensureSeeded(posts: PostData[]): Promise<void> {
   if (memCache && memCache.length > 0) return
   const data = await loadAll()
@@ -137,7 +147,7 @@ export async function getPostStatsAsync(): Promise<{ total: number; published: n
   }
 }
 
-// Sync versions for build-time prerendering (read from committed .data/)
+// Sync versions
 export function getAllPosts(): PostData[] {
   return readJsonFile<PostData[]>(POSTS_FILE, [])
 }
