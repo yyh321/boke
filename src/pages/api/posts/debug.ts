@@ -39,8 +39,8 @@ export const GET: APIRoute = async () => {
     // Step 3: read existing data
     const raw: any = await redis.get(KV_KEY)
     if (raw) {
-      const posts = JSON.parse(raw)
-      result.redisData = { count: posts.length }
+      const posts = typeof raw === 'string' ? JSON.parse(raw) : raw
+      result.redisData = { count: Array.isArray(posts) ? posts.length : 0 }
     } else {
       result.redisData = 'EMPTY'
     }

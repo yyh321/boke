@@ -40,9 +40,9 @@ async function loadAll(): Promise<CommentData[]> {
   const redis = await getRedis()
   if (redis) {
     try {
-      const raw = await redis.get<string>(KV_KEY)
+      const raw: any = await redis.get(KV_KEY)
       if (raw) {
-        cache = JSON.parse(raw)
+        cache = typeof raw === 'string' ? JSON.parse(raw) : raw
         return cache
       }
     } catch {

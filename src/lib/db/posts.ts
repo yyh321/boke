@@ -48,9 +48,9 @@ async function loadAll(): Promise<PostData[]> {
   const redis = await getRedis()
   if (redis) {
     try {
-      const raw = await redis.get<string>(KV_KEY)
+      const raw: any = await redis.get(KV_KEY)
       if (raw) {
-        memCache = JSON.parse(raw)
+        memCache = typeof raw === 'string' ? JSON.parse(raw) : raw
         console.log(`[DB] Loaded ${memCache.length} posts from Redis`)
         return memCache
       }
