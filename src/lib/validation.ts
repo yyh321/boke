@@ -10,7 +10,7 @@ const SPAM_PATTERNS = [
   /(buy|cheap|free|click|subscribe|promotion|earn money)/gi,
 ]
 
-const MAX_CONTENT_LENGTH = 50000
+const MAX_CONTENT_LENGTH = 100000
 const MAX_TITLE_LENGTH = 200
 const MAX_COMMENT_LENGTH = 2000
 const MIN_CONTENT_LENGTH = 10
