@@ -93,7 +93,7 @@
   }
 
   .prose pre code {
-    @apply bg-transparent p-0 text-inherit dark:text-inherit whitespace-pre-wrap break-words;
+    @apply bg-transparent p-0 text-inherit dark:text-inherit;
   }
 
   .prose pre[class*='language-'] {
