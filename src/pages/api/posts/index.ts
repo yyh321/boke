@@ -3,7 +3,8 @@ export const prerender = false
 import type { APIRoute } from 'astro'
 import { getCollection } from 'astro:content'
 import { getAllPostsAsync, getPostByIdAsync, createPostAsync, updatePostAsync, deletePostAsync, ensureSeeded } from '../../../lib/db/posts'
-import { validatePostTitle, validatePostContent } from '../../../lib/validation'
+import { validatePostTitle, validatePostContent, sanitizeHtml } from '../../../lib/validation'
+import { generateSlug, calculateReadingTime, cleanSlug } from '../../../lib/seo'
 import { PostBuilder } from '../../../lib/builders/PostBuilder'
 import type { PostData, ApiResponse } from '../../../lib/db/types'
 
