@@ -44,7 +44,7 @@ if (contentPost && !contentPost.data.draft) {
         .replace(/^### (.+)$/gm, '<h3 id="$1">$1</h3>')
         .replace(/^## (.+)$/gm, '<h2 id="$1">$1</h2>')
         .replace(/^# (.+)$/gm, '<h1>$1</h1>')
-        .replace(/```(\w*)\n([\s\S]*?)```/gm, '<pre><code>$2</code></pre>')
+        .replace(/```(\w*)\n([\s\S]*?)```/gm, '<pre><code class="language-$1">$2</code></pre>')
         .replace(/`([^`]+)`/g, '<code>$1</code>')
         .replace(/^> (.+)$/gm, '<blockquote><p>$1</p></blockquote>')
         .replace(/^- (.+)$/gm, '<li>$1</li>')
