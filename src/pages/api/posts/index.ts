@@ -3,8 +3,8 @@ export const prerender = false
 import type { APIRoute } from 'astro'
 import { getCollection } from 'astro:content'
 import { getAllPostsAsync, getPostByIdAsync, createPostAsync, updatePostAsync, deletePostAsync, ensureSeeded } from '../../../lib/db/posts'
-import { validatePostTitle, validatePostContent, sanitizeHtml } from '../../../lib/validation'
-import { generateSlug, generateSeoTitle, generateSeoDescription, calculateReadingTime, cleanSlug } from '../../../lib/seo'
+import { validatePostTitle, validatePostContent } from '../../../lib/validation'
+import { PostBuilder } from '../../../lib/builders/PostBuilder'
 import type { PostData, ApiResponse } from '../../../lib/db/types'
 
 export const GET: APIRoute = async ({ url }) => {
@@ -76,30 +76,28 @@ export const POST: APIRoute = async ({ request }) => {
     return new Response(JSON.stringify({ success: false, error: contentValidation.errors.join('; ') }), { status: 400 })
   }
 
-  const now = new Date().toISOString()
-  const slug = cleanSlug(body.slug || generateSlug(body.title || ''))
-  const sanitizedContent = sanitizeHtml(body.content || '')
+  const builder = new PostBuilder()
+    .setTitle(body.title || '')
+    .setContent(body.content || '')
+    .setAuthor(body.author || '博主')
 
-  const post: PostData = {
-    id: crypto.randomUUID(),
-    title: body.title || '',
-    content: sanitizedContent,
-    description: body.description || generateSeoDescription(sanitizedContent),
-    category: body.category || '未分类',
-    tags: body.tags || [],
-    coverImage: body.coverImage || '',
-    status: body.status || 'draft',
-    scheduledDate: body.status === 'scheduled' ? (body.scheduledDate || null) : null,
-    publishDate: body.status === 'published' ? now : '',
-    createdAt: now,
-    updatedAt: now,
-    slug,
-    seoTitle: body.seoTitle || generateSeoTitle(body.title || ''),
-    seoDescription: body.seoDescription || generateSeoDescription(sanitizedContent),
-    author: body.author || '博主',
-    readingTime: calculateReadingTime(sanitizedContent),
-    commentCount: 0,
+  if (body.description) builder.setDescription(body.description)
+  if (body.category) builder.setCategory(body.category)
+  if (body.tags) builder.setTags(body.tags)
+  if (body.coverImage) builder.setCoverImage(body.coverImage)
+  if (body.slug) builder.setSlug(body.slug)
+  if (body.seoTitle) builder.setSeoTitle(body.seoTitle)
+  if (body.seoDescription) builder.setSeoDescription(body.seoDescription)
+
+  if (body.status === 'published') {
+    builder.publishNow()
+  } else if (body.status === 'scheduled' && body.scheduledDate) {
+    builder.scheduleAt(body.scheduledDate)
+  } else {
+    builder.saveAsDraft()
   }
+
+  const post = builder.build()
 
   const created = await createPostAsync(post)
   return new Response(JSON.stringify({ success: true, data: created } satisfies ApiResponse), { status: 201 })

@@ -7,3 +7,4 @@ dist/
 .cache
 astro/.astro
 uploads/
+.trae/
