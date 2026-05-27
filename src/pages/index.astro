@@ -48,7 +48,6 @@ const allArticles = [...dbArticles, ...contentArticles].filter((a) => {
 
 allArticles.sort((a, b) => b.pubDate.getTime() - a.pubDate.getTime())
 
-const featuredPosts = allArticles.filter((a) => a.featured).slice(0, 3)
 const recentPosts = allArticles.slice(0, 6)
 ---
 
@@ -76,20 +75,6 @@ const recentPosts = allArticles.slice(0, 6)
         </a>
       </div>
     </div>
-
-    {featuredPosts.length > 0 && (
-      <section class="mb-16">
-        <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6 flex items-center gap-2">
-          <span class="w-1 h-6 bg-primary-500 rounded-full" aria-hidden="true" />
-          精选文章
-        </h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {featuredPosts.map((article) => (
-            <ArticleCard post={article} />
-          ))}
-        </div>
-      </section>
-    )}
 
     <section>
       <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6 flex items-center gap-2">
