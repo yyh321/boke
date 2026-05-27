@@ -85,7 +85,7 @@
   }
 
   .prose pre {
-    @apply rounded-xl my-6 p-4 overflow-x-auto text-sm leading-relaxed;
+    @apply rounded-xl my-6 p-4 overflow-x-auto text-sm leading-relaxed max-w-full;
   }
 
   .prose code {
@@ -93,7 +93,7 @@
   }
 
   .prose pre code {
-    @apply bg-transparent p-0 text-inherit dark:text-inherit;
+    @apply bg-transparent p-0 text-inherit dark:text-inherit whitespace-pre-wrap break-words;
   }
 
   .prose pre[class*='language-'] {
