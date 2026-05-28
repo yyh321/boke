@@ -21,7 +21,7 @@ export function cleanSlug(raw: string): string {
     .substring(0, 100) || 'post'
 }
 
-export function generateSeoTitle(title: string, siteName: string = '于云浩技术博客'): string {
+export function generateSeoTitle(title: string, siteName: string = '超越自我技术博客'): string {
   if (title.length <= 60) {
     return `${title} | ${siteName}`
   }
