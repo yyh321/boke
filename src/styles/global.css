@@ -85,7 +85,7 @@
   }
 
   .prose pre {
-    @apply rounded-xl my-6 p-4 text-sm leading-relaxed max-w-full;
+    @apply rounded-xl my-6 p-4 text-sm leading-relaxed max-w-full border border-gray-200 dark:border-gray-700;
   }
 
   .prose code {
