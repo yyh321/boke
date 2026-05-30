@@ -1,5 +1,28 @@
 ---
 const isLoggedIn = Astro.cookies.has('admin_token')
+
+if (isLoggedIn) {
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000)
+  const token = Astro.cookies.get('admin_token')?.value
+  const session = Astro.cookies.get('admin_session')?.value
+
+  if (token) {
+    Astro.cookies.set('admin_token', token, {
+      path: '/',
+      expires: expiresAt,
+      httpOnly: true,
+      sameSite: 'lax',
+    })
+  }
+
+  if (session) {
+    Astro.cookies.set('admin_session', session, {
+      path: '/',
+      expires: expiresAt,
+      sameSite: 'lax',
+    })
+  }
+}
 ---
 
 <!doctype html>
@@ -43,6 +66,10 @@ const isLoggedIn = Astro.cookies.has('admin_token')
           await fetch('/api/auth', { method: 'DELETE' })
           window.location.href = '/admin/login'
         })
+
+        setInterval(() => {
+          fetch('/api/auth').catch(() => {})
+        }, 10 * 60 * 1000)
       </script>
     )}
   </body>
